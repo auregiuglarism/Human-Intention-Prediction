@@ -1,14 +1,10 @@
 class Worker:
     
-    def __init__(self, workerID, name, probability, state):
-        self.workerID = workerID
+    def __init__(self, name, probability, state):
         self.name = name  
         self.probability = probability  
         self.state = state
         pass
-
-    def getWorkerID(self, workerId):
-        return self.workerID
 
     def getWorkerName(self, name):
         return self.name

@@ -1,33 +1,63 @@
-from baselines.probability.actionClass import Action
+from actionClass import Action
 from objectClass import Object 
 from workerClass import Worker
+
+# Initial Assumptions 
+# We know the active workers at any time
+# We know the object(s) being interacted with through computer vision
+
+# TODO : come up with a way to determine initial probability for each object based on its occurence to be more accurate
+# TODO : Come up with some initial knowledge base to make sure some actions will never be assigned to some objects
+# no matter their probability (eg : you cannot "drink" a "crate"), will make the predict function more efficient (you can think of it as pruning)
+# TODO : Make tests to optimize threshold 
+# TODO : Create a function or code to receive output detected object from computer vision
+# if never encountered, create new object and add it in the list ?
 
 TESTING = True
 
 ### Define Objects, Workers, and Actions ###
+# Objects
+obj1 = Object("bottle", 0.3) 
+obj2 = Object("crate", 0.8)
 
-# TODO : come up with a way to determine initial probability for each object based on its occurence to be more accurate
-obj1 = Object(1, "bottle", 0.3) 
-obj2 = Object(2, "crate", 0.8)
+all_objects = [obj1, obj2] #init
 
-worker1 = Worker(1, "Nicolas", 0.5, True)
-worker2 = Worker(2, "Vitaly", 0.7, False)
-worker3 = Worker(3, "Simeon", 0.9, False)
+def addObject(object):
+    all_objects.append(object)
+    return all_objects
 
-# TODO : Come up with some initial knowledge base to make sure some actions will never be assigned to some objects
-# no matter their probability (eg : you cannot "drink" a "crate"), will make the predict function more efficient (you can think of it as pruning)
-action1 = Action(1, "pick up", 0.2)
-action2 = Action(2, "drink", 0.3)
-default_action = (0, "default action", 0)
+# Workers
+worker1 = Worker("Nicolas", 0.5, True)
+worker2 = Worker("Vitaly", 0.7, False)
+worker3 = Worker("Simeon", 0.9, False)
 
-### Match Object-Worker Pair to Action ###
+all_workers = [worker1, worker2, worker3] #init
 
-THRESHOLD = 0.3
+def addWorker(worker):
+    all_workers.append(worker)
+    return all_workers
+
+# Actions
+action1 = Action("pick up", 0.2)
+action2 = Action("drink", 0.3)
+
+all_actions = [action1, action2] # init
+
+def addAction(action):
+    all_actions.append(action)
+    return action
+
+# Default action
+default_action = ("default action", 0) # default if prob < THRESHOLD
 
 def defaultaction():
     # Do something default
     (print("default action"))
-    return 0 # Corresponds to actionID of default action
+    return default_action # Corresponds to actionID of default action
+
+THRESHOLD = 0.3
+
+## Baseline Model ##
 
 def matchObjectWorkerPairToAction(object_prob, worker_prob, action_prob):
     # Using Bayes' theorem to calculate the probability of the object-worker pair to perform the action 
@@ -47,39 +77,37 @@ def matchObjectWorkerPairToAction(object_prob, worker_prob, action_prob):
     else:
         return bayes_prob
 
-def predict(objectIDLists, workerIDLists, actionIDLists):
+def predict():
     # Build pairs of all possible object-worker pairs with Active workers
-    active_workers = []
-    for worker in workerIDLists:
+    active_workers = [] # ID list of all active worker
+    for worker in all_workers:
         if worker.getWorkerState() == True:
             active_workers.append(worker)
     
     object_worker_pairs = []
-    for object in objectIDLists:
-        for worker in active_workers:
-            object_worker_pairs.append((object, worker))
+    for object in all_objects:
+        for active_worker in active_workers:
+            pair = (object, active_worker) # tuple 
+            object_worker_pairs.append(pair)
 
     # For each pair, calculate the probability of the pair to perform the action, return the highest probability
     # In a greedy manner :
-    max = 0
-    actionID_max = 0
+    highest_prob = 0 # init
+    highest_action = defaultaction() # init
 
-    for pair in object_worker_pairs:
-        object = pair[0]
-        worker = pair[1]
-        for action in actionIDLists:
+    for pair_tuple in object_worker_pairs:
+        object = pair_tuple()[0] # tuple can be accessed like this but are immutable
+        worker = pair_tuple()[1] # tuple can be accessed like this but are immutable
+        # error ? 
+        for action in all_actions:
             action_prob = matchObjectWorkerPairToAction(object.getObjectProbability(), worker.getWorkerProbability(), action.getActionProbability())
-            if action_prob > max:
-                max = action_prob
-                actionID_max = action.getActionID()
-        
-    if actionID_max == 0:
-        defaultaction()
-    else:    
-        return actionID_max
+            if action_prob > highest_prob:
+                highest_prob = action_prob
+                highest_action = action
+
+    return highest_action
 
 ### Testing ###
-
 # Testing matchObjectWorkerPairToAction() 
 obj_prob = 0.7
 worker_prob = 0.8
@@ -87,14 +115,10 @@ action_prob = 0.6
 
 matchObjectWorkerPairToAction(obj_prob, worker_prob, action_prob) # is working properly
 # with settings at : 0.3, 0.5, 0.7, returns 0.2916666666666667, underneath threshold so default action
-# with settings at : 0.7, 0.8, 0.6, returns 0.6562499999999999, above threshold so returns actionID of action
+# with settings at : 0.7, 0.8, 0.6, returns 0.6562499999999999, above threshold so returns bayes_prob
 
 # Testing predict() TODO : Test it
-objectIDLists = [obj1, obj2]
-workerIDLists = [worker1, worker2, worker3]
-actionIDLists = [action1, action2]
-
-predict(objectIDLists, workerIDLists, actionIDLists) 
+predict() 
 
 
 
