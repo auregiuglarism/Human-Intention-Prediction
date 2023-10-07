@@ -55,9 +55,9 @@ def defaultaction():
     (print("default action"))
     return default_action # Corresponds to actionID of default action
 
-THRESHOLD = 0.3
-
 ## Baseline Model ##
+
+THRESHOLD = 0.3
 
 def matchObjectWorkerPairToAction(object_prob, worker_prob, action_prob):
     # Using Bayes' theorem to calculate the probability of the object-worker pair to perform the action 
