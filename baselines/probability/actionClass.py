@@ -4,10 +4,10 @@ class Action:
         self.name = name
         self.probability = probability
     
-    def getActionName(self, name):
+    def getActionName(self):
         return self.name
     
-    def getActionProbability(self, probability):
+    def getActionProbability(self):
         return self.probability
     
     def setActionProbability(self, probability):

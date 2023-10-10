@@ -5,10 +5,10 @@ class Object:
         self.name = name
         pass
     
-    def getObjectName(self, name):
+    def getObjectName(self):
         return self.name
     
-    def getObjectProbability(self, probability):
+    def getObjectProbability(self):
         return self.probability
     
     def setObjectProbability(self, probability):

@@ -1,5 +1,5 @@
 from actionClass import Action
-from objectClass import Object 
+from objectClass import Object
 from workerClass import Worker
 
 # Initial Assumptions 
@@ -87,7 +87,7 @@ def predict():
     object_worker_pairs = []
     for object in all_objects:
         for active_worker in active_workers:
-            pair = (object, active_worker) # tuple 
+            pair = [Object (object), Worker(active_worker)]
             object_worker_pairs.append(pair)
 
     # For each pair, calculate the probability of the pair to perform the action, return the highest probability
@@ -95,9 +95,15 @@ def predict():
     highest_prob = 0 # init
     highest_action = defaultaction() # init
 
-    for pair_tuple in object_worker_pairs:
-        object = pair_tuple()[0] # tuple can be accessed like this but are immutable
-        worker = pair_tuple()[1] # tuple can be accessed like this but are immutable
+    for pair in object_worker_pairs:
+        object = pair[0]
+
+        print("object", object.getObjectProbability())
+        print(type(object)) 
+
+        worker = pair[1] 
+        print(type(worker))
+
         # error ? 
         for action in all_actions:
             action_prob = matchObjectWorkerPairToAction(object.getObjectProbability(), worker.getWorkerProbability(), action.getActionProbability())
@@ -113,7 +119,7 @@ obj_prob = 0.7
 worker_prob = 0.8
 action_prob = 0.6
 
-matchObjectWorkerPairToAction(obj_prob, worker_prob, action_prob) # is working properly
+# matchObjectWorkerPairToAction(obj_prob, worker_prob, action_prob) # is working properly
 # with settings at : 0.3, 0.5, 0.7, returns 0.2916666666666667, underneath threshold so default action
 # with settings at : 0.7, 0.8, 0.6, returns 0.6562499999999999, above threshold so returns bayes_prob
 
