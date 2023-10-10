@@ -3,3 +3,4 @@ saveForLater
 MobilenetSSD
 track/fish.mov
 humanWorkLog
+baselines/probability/__pycache__
