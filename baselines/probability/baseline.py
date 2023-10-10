@@ -28,6 +28,7 @@ def streamProb():
     model = YOLO('yolov8n.pt')  # pretrained YOLOv8n model
 
     vidcap = cv.VideoCapture(0)
+    
 
     previous_time = time.time()
     timestep = 1 # seconds
@@ -39,6 +40,10 @@ def streamProb():
         if elapsed_time > timestep:
 
             ret, frame = vidcap.read()
+            cv.imshow("Stream", frame)
+            
+            if cv.waitKey(1) & 0xFF == ord('q'):
+                break
         
             if not ret: 
                 break
@@ -61,6 +66,9 @@ def streamProb():
                 if exist == False: # If object does not exist, create new object
                     object = Object(name, probability)
                     all_objects.append(object)
+            for o in all_objects:
+                print(o)
+    
 
 # Workers
 worker1 = Worker("Nicolas", 0.3, True)
@@ -156,10 +164,8 @@ if TESTING:
 # with settings at : 0.7, 0.8, 0.6, returns 0.6562499999999999, above threshold so returns bayes_prob
 
 # Testing predict() TODO : Test it
-print(predict(all_workers, all_objects, all_actions)) 
+#print(predict(all_workers, all_objects, all_actions)) 
 
 
-
-
-
+cv.destroyAllWindows()
 

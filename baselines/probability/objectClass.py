@@ -14,3 +14,6 @@ class Object:
     def setObjectProbability(self, probability):
         self.probability = probability
         return self.probability
+
+    def __str__(self):
+        return f"{self.name}, {self.probability}"
