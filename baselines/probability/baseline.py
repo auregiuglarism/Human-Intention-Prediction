@@ -25,7 +25,7 @@ all_objects = [] #init
 def streamProb():
     """Calculate probabilities from stream"""
     # Load a model
-    model = YOLO('yolov8n.pt')  # pretrained YOLOv8n model
+    model = YOLO('Models/best.pt')  # pretrained YOLOv8n model
 
     vidcap = cv.VideoCapture(0)
     
