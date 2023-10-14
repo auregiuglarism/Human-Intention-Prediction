@@ -28,7 +28,6 @@ def streamProb():
     model = YOLO('Models/best.pt')  # pretrained YOLOv8n model
 
     vidcap = cv.VideoCapture(0)
-    
 
     previous_time = time.time()
     timestep = 1 # seconds
@@ -66,6 +65,8 @@ def streamProb():
                 if exist == False: # If object does not exist, create new object
                     object = Object(name, probability)
                     all_objects.append(object)
+
+            # printing in real-time
             for o in all_objects:
                 print(o)
     
@@ -152,20 +153,6 @@ def predict(all_workers, all_objects, all_actions):
 # Program Loop
 if TESTING:
     streamProb()
-
-### Testing ###
-# Testing matchObjectWorkerPairToAction() 
-# obj_prob = 0.7
-# worker_prob = 0.8
-# action_prob = 0.6
-
-# matchObjectWorkerPairToAction(obj_prob, worker_prob, action_prob) # is working properly
-# with settings at : 0.3, 0.5, 0.7, returns 0.2916666666666667, underneath threshold so default action
-# with settings at : 0.7, 0.8, 0.6, returns 0.6562499999999999, above threshold so returns bayes_prob
-
-# Testing predict() TODO : Test it
-#print(predict(all_workers, all_objects, all_actions)) 
-
 
 cv.destroyAllWindows()
 

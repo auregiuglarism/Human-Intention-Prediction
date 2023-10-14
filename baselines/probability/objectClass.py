@@ -15,5 +15,6 @@ class Object:
         self.probability = probability
         return self.probability
 
+    # Print Method for real-time viewing
     def __str__(self):
         return f"{self.name}, {self.probability}"
