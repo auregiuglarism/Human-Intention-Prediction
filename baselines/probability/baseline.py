@@ -25,7 +25,7 @@ all_objects = [] #init
 def streamProb():
     """Calculate probabilities from stream"""
     # Load a model
-    model = YOLO('Models/best.pt')  # pretrained YOLOv8n model
+    model = YOLO('Models/yolov8n.pt')  # pretrained YOLOv8n model
 
     vidcap = cv.VideoCapture(0)
 
@@ -98,7 +98,7 @@ def defaultaction():
 
 ## Baseline Model ##
 
-THRESHOLD = 0.3
+THRESHOLD = 0.5
 
 def matchObjectWorkerPairToAction(object_prob, worker_prob, action_prob):
     # Using Bayes' theorem to calculate the probability of the object-worker pair to perform the action 
