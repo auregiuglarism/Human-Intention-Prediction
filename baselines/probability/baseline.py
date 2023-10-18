@@ -48,7 +48,7 @@ def streamProb():
                 break
 
             results = model.track(frame, persist=True)
-            typeProbMatch = conf.getProbabilities(results)
+            typeProbMatch = conf.getProbabilities(results) # prints detected probs
             # print(typeProbMatch)
 
             for key in typeProbMatch:
