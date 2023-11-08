@@ -30,3 +30,12 @@
 #### Utility files and directories:
 - ZED_body_tracking_group_10/ogl_viewer_skeleton/viewer.py:
 - ZED_body_tracking_group_10/cv_viewer
+
+### Data (angle/ distance/ lighting)
+- data1 - angle + far + medium 
+- data3 - angle + far + mediumHigh
+- data4 - angle + close + medium
+- data5 - angle + close + mediumHigh
+- data6 - top + close + mediumHigh
+- data7 - top + close + medium
+
