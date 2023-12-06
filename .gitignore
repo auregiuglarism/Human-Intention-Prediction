@@ -6,3 +6,4 @@ humanWorkLog
 baselines/probability/__pycache__
 *.DS_Store
 Data
+*mp4
