@@ -26,6 +26,10 @@
     - reads the svo file (test purposes to see if it records correctly)
 - ZED_body_tracking_group_10/Record_Skeleton_Data.py:
     - opens live camera and creates json file of skeleton coordinates
+- ZED_body_tracking_group_10/detector:
+    - Combines skeleton tracking with object tracking. This data is fed into the baseline model
+- ZED_body_tracking_group_10/baseline_model.py:
+    - model which assigns equiprobable weights to actions and is used to predict the next possible action done by a human
 
 #### Utility files and directories:
 - ZED_body_tracking_group_10/ogl_viewer_skeleton/viewer.py:
