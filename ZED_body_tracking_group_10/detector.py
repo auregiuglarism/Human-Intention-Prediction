@@ -246,12 +246,7 @@ class ZedObjectDetection:
                 if len(skeleton_data[-1]['body_list']) > 0 and len(objects.object_list) > 0:
                     print(self.obj_num)
                     print(len(objects.object_list))
-                    if self.obj_num <= len(objects.object_list): # flick check
-                        object = self.get_close_object(objects.object_list, skeleton_data[-1]['body_list'][-1])
-                        self.obj_num = len(objects.object_list)
-                        self.held_obj = object
-                    else:
-                        object = self.held_obj
+                    object = self.get_close_object(objects.object_list, skeleton_data[-1]['body_list'][-1])
                     print('hold: ', self.holding)
                     if object is not None and not self.holding:
                         quadrant = self.baseline.compute_quadrant(object.bounding_box_2d)
@@ -259,11 +254,12 @@ class ZedObjectDetection:
                         name = self.map_raw_to_label[str(object.raw_label)] + str(
                             quadrant) + "_" + self.node_name
 
-                        pred = self.baseline.yolo_predict(name)
+                        self.node_name = name  # keep track of placed objects
 
+                        pred = self.baseline.yolo_predict(name)
                         self.holding = True
                         print("Prediction ", pred)
-                        sleep(2)
+                        sleep(3) #TODO: remove, was used for debugging
                         print()
 
 
@@ -321,8 +317,8 @@ if __name__ == '__main__':
     opt = parser.parse_args()
 
     graph = [("Cup", "N"),
-             ("Crate", "NW"),
-             ("Feeder", "S")]
+             ("Crate", "N"),
+             ("Feeder", "N")]
     config = configuration.Configuration()
     config.initGraph(graph)
     config.assign_probs()

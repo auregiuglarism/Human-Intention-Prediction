@@ -48,6 +48,7 @@ class BaselineModel:
         abs_object_center_x = abs(object_center_x)
         abs_object_center_y = abs(object_center_y)
 
+        return 'N'  # TODO: remove, was used for debugging
         if abs_object_center_x > abs_object_center_y and object_center_x > 0 and object_center_y > 0:
             return "NE"
         if abs_object_center_x > abs_object_center_y and object_center_x > 0 > object_center_y < 0:
@@ -118,13 +119,19 @@ class BaselineModel:
 
     def yolo_predict(self, node):
         split1 = set(node.split("_"))
-        if (len(split1) < len(self.known_objects)):
+        if (len(split1) <= len(self.known_objects)):
             self.yolo_node = node
             predic = self.predict(node)
             return predic
 
     def predict(self, node):
+
+        for n in self.G.nodes:
+            if (self.checkEq(n, node)):
+                node = n
+                break
         out_edges = self.G.out_edges([node])
+
         if len(out_edges) > 1:
             return self.perform_step(out_edges)
         if len(out_edges) == 0:
