@@ -30,6 +30,11 @@ class ZedObjectDetection:
         self.frame_size_set = False
         self.map_raw_to_label = {"0": "Crate", "1": "Feeder","2":"Cup" }
 
+        # Flood gate variables
+        self.holding = False
+        self.held_obj = None
+        self.obj_num = 0
+
     # converts xywh format (used by YOLO) to abcd format (used by ZED SDK)
     def xywh_to_abcd(self, xywh, im_shape):
         output = np.zeros((4, 2))
@@ -104,6 +109,7 @@ class ZedObjectDetection:
     # main thread
     def main(self):
         global image_net, exit_signal, run_signal, detections
+        pred = None
 
         capture_thread = Thread(target=self.torch_thread,
                                 kwargs={'weights': opt.weights, 'img_size': opt.img_size, "conf_thres": opt.conf_thres,
@@ -154,7 +160,7 @@ class ZedObjectDetection:
         body_tracking_parameters = sl.BodyTrackingParameters()
         body_tracking_parameters.instance_module_id = 1
         body_tracking_parameters.detection_model = sl.BODY_TRACKING_MODEL.HUMAN_BODY_ACCURATE
-        body_tracking_parameters.body_format = sl.BODY_FORMAT.BODY_34
+        body_tracking_parameters.body_format = sl.BODY_FORMAT.BODY_18
         body_tracking_parameters.enable_body_fitting = True
         body_tracking_parameters.enable_tracking = True
 
@@ -166,7 +172,7 @@ class ZedObjectDetection:
         body_runtime_param = sl.BodyTrackingRuntimeParameters()
         objects = sl.Objects()
         obj_runtime_param = sl.ObjectDetectionRuntimeParameters()
-        obj_runtime_param.detection_confidence_threshold = 50
+        obj_runtime_param.detection_confidence_threshold = 30
 
 
 
@@ -236,23 +242,35 @@ class ZedObjectDetection:
                 ## OUR CODE ##
                 print("Length of skeleton data: ", len(skeleton_data[-1]['body_list']))
                 print("Length of object list ", len(objects.object_list))
-                if len(skeleton_data[-1]['body_list']) > 0 and len(objects.object_list)>0:
-                    object = self.get_moving_object(objects.object_list, skeleton_data[-1]['body_list'][-1])
-                    print(object)
-                    quadrant = self.baseline.compute_quadrant(object.bounding_box_2d)
 
-                    name = self.map_raw_to_label[str(object.raw_label)] + str(
-                        quadrant) + "_" + self.node_name
+                if len(skeleton_data[-1]['body_list']) > 0 and len(objects.object_list) > 0:
+                    print(self.obj_num)
+                    print(len(objects.object_list))
+                    if self.obj_num <= len(objects.object_list): # flick check
+                        object = self.get_close_object(objects.object_list, skeleton_data[-1]['body_list'][-1])
+                        self.obj_num = len(objects.object_list)
+                        self.held_obj = object
+                    else:
+                        object = self.held_obj
+                    print('hold: ', self.holding)
+                    if object is not None and not self.holding:
+                        quadrant = self.baseline.compute_quadrant(object.bounding_box_2d)
 
-                    pred = self.baseline.yolo_predict(name)
+                        name = self.map_raw_to_label[str(object.raw_label)] + str(
+                            quadrant) + "_" + self.node_name
 
-                    print("Prediction ", pred)
-                    print()
+                        pred = self.baseline.yolo_predict(name)
+
+                        self.holding = True
+                        print("Prediction ", pred)
+                        sleep(2)
+                        print()
+
 
                 # for obj in objects.object_list:
-                #     print("ID: {} \nPos: {} \n3D Box: {} \nConf: {} \nClass: {}".format(obj.id, obj.position,
-                #                                                                         obj.bounding_box,
-                #                                                                         obj.confidence, obj.raw_label))
+                    # print("ID: {} \nPos: {} \n3D Box: {} \nConf: {} \nClass: {}".format(obj.id, obj.position,
+                    #                                                                     obj.bounding_box,
+                    #                                                                     obj.confidence, obj.raw_label))
 
                 # 2D rendering
                 np.copyto(image_left_ocv, image_left.get_data())
@@ -271,15 +289,26 @@ class ZedObjectDetection:
         exit_signal = True
         zed.close()
 
-    def get_moving_object(self, object_list, skeleton):
+    def get_close_object(self, object_list, skeleton, threshold=0.28):
         prob_object = object_list[0]
         min_dist = float('inf')
+
         for obj in object_list:
-            distance = self.baseline.compute_distance(obj.bounding_box, skeleton['keypoint'])
-            if distance < min_dist:
+            distance_right, distance_left = self.baseline.compute_distance(obj.position, skeleton['keypoint']) #'keypoint'
+            if distance_right < min_dist:
                 prob_object = obj
-                min_dist = distance
-        return prob_object
+                min_dist = distance_right
+
+            elif distance_left < min_dist:
+                prob_object = obj
+                min_dist = distance_left
+
+        print('dist: ', min_dist)
+        if min_dist < threshold:
+            return prob_object
+
+        self.holding = False # not changing
+        return None
 
 
 if __name__ == '__main__':

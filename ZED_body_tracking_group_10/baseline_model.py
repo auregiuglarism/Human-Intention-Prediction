@@ -40,8 +40,10 @@ class BaselineModel:
 
     def compute_quadrant(self, bounding_box):
         global center_x, center_y
-        object_center_x = ((bounding_box[2][0] - bounding_box[0][0]) / 2) - center_x
-        object_center_y = ((bounding_box[2][1] - bounding_box[0][1]) / 2) - center_y
+        # object_center_x = ((bounding_box[2][0] - bounding_box[0][0]) / 2) - center_x
+        # object_center_y = ((bounding_box[2][1] - bounding_box[0][1]) / 2) - center_y
+        object_center_x = ((bounding_box[2][0] - bounding_box[0][0]) / 2)
+        object_center_y = ((bounding_box[2][1] - bounding_box[0][1]) / 2)
 
         abs_object_center_x = abs(object_center_x)
         abs_object_center_y = abs(object_center_y)
@@ -62,7 +64,7 @@ class BaselineModel:
     def euclidean_distance(self,x1, y1, z1, x2, y2, z2):
         return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2 + (z2 - z1) ** 2)
 
-    def checkEq(self,nd1, nd2):
+    def checkEq(self, nd1, nd2):
         splt1 = set(nd1.split("_"))
         splt2 = set(nd2.split("_"))
 
@@ -71,32 +73,32 @@ class BaselineModel:
     def compute_distance(self, bounding_box, skeleton):
         global center_x, center_y
         ## TODO: IMPLEMENT FOR Z AXIS
-        w0 = 1
-        w1 = 1
-        w2 = 1
 
         # Bounding box needs to be in the form of a 4x2 array, output of xywh_to_abcd.
-        center_x = (bounding_box[0][0] - bounding_box[3][0]) / 2
-        center_y = (bounding_box[0][1] - bounding_box[4][1]) / 2
-        center_z = (bounding_box[0][2] - bounding_box[1][2]) /2
-        center_object = np.array([center_x, center_y, center_z])
+        # center_x = (bounding_box[0][0] - bounding_box[3][0]) / 2
+        # center_y = (bounding_box[0][1] - bounding_box[4][1]) / 2
+        # center_z = (bounding_box[0][2] - bounding_box[1][2]) /2
+        # center_object = np.array([center_x, center_y, center_z])
+        center_object = np.array(bounding_box)
 
         # Skeleton needs to be an array of 34 keypoints
         # Normalize Chest X
-        chest_x = skeleton[1][0]
-        left_hand = np.array([skeleton[7][0] - chest_x, skeleton[7][1], skeleton[7][2]])
-        right_hand = np.array([skeleton[14][0] - chest_x, skeleton[14][1], skeleton[14][2]])
-        head = np.array([skeleton[27][0] - chest_x, skeleton[27][1], skeleton[27][2]])
+        left_hand = np.array([skeleton[7][0], skeleton[7][1], skeleton[7][2]]) # chest_x subtrction
+        right_hand = np.array([skeleton[4][0], skeleton[4][1], skeleton[4][2]])
+        # print("Left {}\n Right {}".format(left_hand, right_hand))
+        # print("Objects: ", center_object)
 
         # Compute distance
-        object_lefthand = w0 * self.euclidean_distance(left_hand[0], left_hand[1], left_hand[2], center_object[0], center_object[1], center_object[2])
-        object_righthand = w0 * self.euclidean_distance(right_hand[0], right_hand[1], right_hand[2], center_object[0],
-                                                        center_object[1], center_object[2])
-        object_head = w1 * self.euclidean_distance(head[0], head[1], head[2], center_object[0], center_object[1], center_object[2])
+        object_lefthand = self.euclidean_distance(left_hand[0], left_hand[1], left_hand[2], center_object[0], center_object[1], center_object[2])
+        object_righthand = self.euclidean_distance(right_hand[0], right_hand[1], right_hand[2], center_object[0], center_object[1], center_object[2])
 
-        avg_distance = (object_lefthand + object_righthand + object_head) / 3.0
+        # avg_distance = (object_lefthand + object_righthand) / 2.0
+        # print('Dstance:', avg_distance)
+        # print('rhs: ', object_righthand)
+        # print('lhs: ', object_lefthand)
+        # print()
 
-        return avg_distance
+        return object_righthand, object_lefthand
 
     # Euclidean distance between two points in 2D space
 
