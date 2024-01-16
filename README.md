@@ -14,17 +14,17 @@
 
 
 ## ZED guidelines
-- test.py:
+- Live_Feed.py:
     - Live output feed of the people and skeleton tracking on top
 - ZED_body_tracking_group_10/ogl_viewer/viewer.py:
     - Only the skeleton tracking shown
-- ZED_body_tracking_group_10/svo_export.py:
+- ZED_body_tracking_group_10/Conver_2d_Recording .py:
     - Takes in recorded file. Saves it as jpg sequence (can use different types, but we decided to use sequence)
-- ZED_body_tracking_group_10/recording_3d.py:
+- ZED_body_tracking_group_10/Record_Yolo.py:
     - creates svo file 
-- ZED_body_tracking_group_10/reading_recording.py:
+- ZED_body_tracking_group_10/Read_Svo.py:
     - reads the svo file (test purposes to see if it records correctly)
-- ZED_body_tracking_group_10/convert_skeleton.py:
+- ZED_body_tracking_group_10/Record_Skeleton_Data.py:
     - opens live camera and creates json file of skeleton coordinates
 
 #### Utility files and directories:
