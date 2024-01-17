@@ -1,6 +1,7 @@
 import json
 import random
 import numpy as np
+from sklearn.neighbors import NearestNeighbors
 
 from ZED_body_tracking_group_10.configuration import Configuration
 import math as Math
@@ -62,6 +63,22 @@ class BaselineModel:
         if abs_object_center_x < abs_object_center_y and object_center_y < 0:
             return "S"
 
+    # Return nearest neighbours to the given coordinate point
+    # objLst - list of already placed objects e.g. [("Cup0", (1, 3, 2)), ("Crate0", (1.2, 2.4, 0.5)), ...]
+    # newObjPos - tuple of coordinates for newly placed object e.g. [1.2, 2.4, 0.5] i.e. [x, y, z]
+    #
+    # Output:
+    # returns indices of nearest neighbours (ordered in terms of increasing distance i.e. at index 0 it will be closest)
+    def findNN(self, newObjPos, objLst, neighbrhd=8):
+
+        crdLst = []
+        for tpl in objLst:
+            crdLst.append(tpl[1])
+
+        if (len(crdLst) < neighbrhd): neighbrhd = len(crdLst)
+        nbrs = NearestNeighbors(n_neighbors=neighbrhd, algorithm='ball_tree').fit(crdLst)
+
+        return nbrs.kneighbors([newObjPos], return_distance=False)
     def euclidean_distance(self,x1, y1, z1, x2, y2, z2):
         return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2 + (z2 - z1) ** 2)
 
