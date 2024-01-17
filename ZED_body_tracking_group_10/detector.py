@@ -15,6 +15,7 @@ from time import sleep
 import cv_viewer_detector.tracking_viewer as cv_viewer
 import configuration
 import baseline_model
+from ZED_body_tracking_group_10.Object import Object
 from ZED_body_tracking_group_10.Record_Skeleton_Data import serializeBodies
 
 lock = Lock()
@@ -32,8 +33,8 @@ class ZedObjectDetection:
 
         # Flood gate variables
         self.holding = False
-        self.held_obj = None
-        self.obj_num = 0
+        self.prevHolding = False
+        self.plcdObjs = []
 
     # converts xywh format (used by YOLO) to abcd format (used by ZED SDK)
     def xywh_to_abcd(self, xywh, im_shape):
@@ -244,25 +245,27 @@ class ZedObjectDetection:
                 print("Length of object list ", len(objects.object_list))
 
                 if len(skeleton_data[-1]['body_list']) > 0 and len(objects.object_list) > 0:
-                    print(self.obj_num)
+                    # print(self.obj_num)
                     print(len(objects.object_list))
                     object = self.get_close_object(objects.object_list, skeleton_data[-1]['body_list'][-1])
                     print('hold: ', self.holding)
-                    if object is not None and not self.holding:
-                        quadrant = self.baseline.compute_quadrant(object.bounding_box_2d)
+                    if object is not None and self.prevHolding and not self.holding:
+                        newObj = Object(self.map_raw_to_label[str(object.raw_label)], object.position.tolist())
+                        obj_name = self.baseline.compute_quadrant(newObj, self.plcdObjs, self.baseline.known_objects)
 
-                        name = self.map_raw_to_label[str(object.raw_label)] + str(
-                            quadrant) + "_" + self.node_name
+                        name = obj_name + "_" + self.node_name
+                        self.plcdObjs.append(newObj)
 
-                        self.node_name = name  # keep track of placed objects
+                        if (self.baseline.G.has_node(name)):
+                            self.node_name = name  # keep track of placed objects
 
-                        pred = self.baseline.yolo_predict(name)
-                        self.holding = True
-                        print("Prediction ", pred)
-                        sleep(3) #TODO: remove, was used for debugging
-                        print()
-
-
+                            pred = self.baseline.yolo_predict(name)
+                            print("Prediction ", pred)
+                            sleep(3) #TODO: remove, was used for debugging
+                            print()
+                        else:
+                            print("Wrong placement")
+                    self.prevHolding = self.holding
                 # for obj in objects.object_list:
                     # print("ID: {} \nPos: {} \n3D Box: {} \nConf: {} \nClass: {}".format(obj.id, obj.position,
                     #                                                                     obj.bounding_box,
@@ -286,7 +289,7 @@ class ZedObjectDetection:
         zed.close()
 
     def get_close_object(self, object_list, skeleton, threshold=0.28):
-        prob_object = object_list[0]
+        prob_object = None
         min_dist = float('inf')
 
         for obj in object_list:
@@ -301,9 +304,13 @@ class ZedObjectDetection:
 
         print('dist: ', min_dist)
         if min_dist < threshold:
+            self.holding = True
             return prob_object
 
         self.holding = False # not changing
+
+        if (self.prevHolding==True): # if letting go return closest object
+            return prob_object
         return None
 
 
@@ -316,9 +323,9 @@ if __name__ == '__main__':
     parser.add_argument('--iou_thres', type=float, default=0.5, help='iou threshold')
     opt = parser.parse_args()
 
-    graph = [("Cup", "N"),
-             ("Crate", "N"),
-             ("Feeder", "N")]
+    graph = [("Cup", (0), ("-1", "-1", "Crate0", "-1")),
+             ("Crate", (0), ("Cup0", "-1", "Cup1", "-1")),
+             ("Cup", (1), ("Crate0", "-1", "-1", "-1"))]
     config = configuration.Configuration()
     config.initGraph(graph)
     config.assign_probs()

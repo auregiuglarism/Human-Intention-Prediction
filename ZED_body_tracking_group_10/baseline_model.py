@@ -44,40 +44,42 @@ class BaselineModel:
             - coordinates from zed
     """
 
-    def compute_quadrant(self, new_object, closest_objects):
-        # object_center_x = ((bounding_box[2][0] - bounding_box[0][0]) / 2) - center_x
-        # object_center_y = ((bounding_box[2][1] - bounding_box[0][1]) / 2) - center_y
-        # object_center_x = ((bounding_box[2][0] - bounding_box[0][0]) / 2)
-        # object_center_y = ((bounding_box[2][1] - bounding_box[0][1]) / 2)
-
+    def compute_quadrant(self, new_object, objLst, configr):
         center_x = new_object.pos[0]
-        center_y = new_object.pos[1]
+        # center_y = new_object.pos[1]
 
         # (left, front, right, back)
-        relative_position = [-1, -1, -1, -1]
+        relative_position = ["-1", "-1", "-1", "-1"]
+
+        closest_objects = self.findNN(new_object.pos, objLst)
 
         for ex_object in closest_objects:
             obj_x = ex_object.pos[0] - center_x
-            obj_y = ex_object.pos[1] - center_y
+            # obj_y = ex_object.pos[1] - center_y
 
             # right object
-            if abs(obj_x) > abs(obj_y) and obj_x > 0:
-                relative_position[2] = ex_object.object_name
-                ex_object.relations[0] = new_object.object_name
+            # if abs(obj_x) > abs(obj_y) and obj_x > 0:
+            if obj_x>0:
+                relative_position[2] = ex_object.name
+                ex_object.relations[0] = new_object.name
             # left object
-            if abs(obj_x) > abs(obj_y) and obj_x < 0:
-                relative_position[0] = ex_object.object_name
-                ex_object.relations[2] = new_object.object_name
+            # if abs(obj_x) > abs(obj_y) and obj_x < 0:
+            if obj_x<0:
+                relative_position[0] = ex_object.name
+                ex_object.relations[2] = new_object.name
                 # front object
-            if abs(obj_x) < abs(obj_y) and obj_y > 0:
-                relative_position[1] = ex_object.object_name
-                ex_object.relations[3] = new_object.object_name
-                # back object
-            if abs(obj_x) < abs(obj_y) and obj_y < 0:
-                relative_position[3] = ex_object.object_name
-                ex_object.relations[0] = new_object.object_name
-        new_object.set_new_relation(tuple(relative_position))
-        return new_object
+            # if abs(obj_x) < abs(obj_y) and obj_y > 0:
+            #     relative_position[1] = ex_object.name
+            #     ex_object.relations[3] = new_object.name
+            #     back object
+            # if abs(obj_x) < abs(obj_y) and obj_y < 0:
+            #     relative_position[3] = ex_object.name
+            #     ex_object.relations[0] = new_object.name
+
+        new_object.set_new_relation(relative_position)
+        self.updateNames(objLst, configr)
+
+        return self.determineName(new_object, configr)
 
     # Return nearest neighbours to the given coordinate point
     # objLst - list of already placed objects e.g. [("Cup0", (1, 3, 2)), ("Crate0", (1.2, 2.4, 0.5)), ...]
@@ -85,16 +87,52 @@ class BaselineModel:
     #
     # Output:
     # returns indices of nearest neighbours (ordered in terms of increasing distance i.e. at index 0 it will be closest)
+
+    def updateNames(self, objLst, configr):
+        for obj in objLst:
+            obj.name = self.determineName(obj, configr)
+
+    def determineName(self, new_object, configr):
+        cnfgr_rltns = []
+        for tup in configr:  # determine objects of the same type
+            if (tup[0] == new_object.type):
+                cnfgr_rltns.append((tup[0]+str(tup[1]), tup[2]))
+
+        best_match = 0
+        best_name = "None"
+        for tup in cnfgr_rltns:
+            match = 0
+            for i in range(len(tup[1])):
+                if (tup[1][i]==new_object.relations[i]):
+                    match+=1
+
+            if (match > best_match):
+                best_name = tup[0]
+                best_match = match
+
+        if (best_name=="None" and len(cnfgr_rltns) != 0):  # assign random if still None
+            best_name = cnfgr_rltns[random.randint(0, len(cnfgr_rltns)-1)][0]
+
+        new_object.name = best_name
+        return best_name
+
     def findNN(self, newObjPos, objLst, neighbrhd=8):
 
         crdLst = []
-        for tpl in objLst:
-            crdLst.append(tpl[1])
+        for obj in objLst:
+            crdLst.append(obj.pos)
 
-        if (len(crdLst) < neighbrhd): neighbrhd = len(crdLst)
-        nbrs = NearestNeighbors(n_neighbors=neighbrhd, algorithm='ball_tree').fit(crdLst)
-
-        return nbrs.kneighbors([newObjPos], return_distance=False)
+        if (len(crdLst) < neighbrhd):
+            neighbrhd = len(crdLst)
+        if neighbrhd>0:
+            nbrs = NearestNeighbors(n_neighbors=neighbrhd, algorithm='ball_tree').fit(crdLst)
+            nbrs_idx = nbrs.kneighbors([newObjPos], return_distance=False)
+            nn_objs = []
+            for idx in nbrs_idx:
+                nn_objs.append(objLst[idx[0]])
+            return nn_objs
+        else:
+            return []
     def euclidean_distance(self,x1, y1, z1, x2, y2, z2):
         return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2 + (z2 - z1) ** 2)
 

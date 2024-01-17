@@ -1,5 +1,9 @@
 class Object:
-    def __init__(self, type, id, relations):
+    def __init__(self, type, pos):
         self.type = type
-        self.id = id
-        self.relations = relations
+        self.name = "Name"
+        self.relations = []
+        self.pos = pos
+
+    def set_new_relation(self, relative_position):
+        self.relations = relative_position
