@@ -17,7 +17,7 @@ class Configuration:
             for objTup in pos:
                 # get reference for this node
                 # ref = objTup[0]+str(objTup[1][0])+str(objTup[1][1])+str(objTup[1][2])+"_"+str(prev_ref)
-                ref = objTup[0] + objTup[1] + "_" + str(prev_ref)
+                ref = objTup[0] + str(objTup[1]) + "_" + str(prev_ref)
 
                 edges_to_add = []
                 foundEqls = False
