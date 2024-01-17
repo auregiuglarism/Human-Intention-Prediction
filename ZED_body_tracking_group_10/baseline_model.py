@@ -6,17 +6,13 @@ from ZED_body_tracking_group_10.configuration import Configuration
 import math as Math
 
 
-
-
-
 class BaselineModel:
-    def __init__(self, G=None, known_objects = None):
+    def __init__(self, G=None, known_objects=None):
         self.G = G
         self.yolo_node = "root"
         self.known_objects = known_objects
         self.frame_x = 0.0
         self.frame_y = 0.0
-
 
     def load_data(self, path):
         data = []
@@ -38,31 +34,51 @@ class BaselineModel:
                     result_list.append(coordinates)
         return result_list
 
-    def compute_quadrant(self, bounding_box):
-        global center_x, center_y
+    """
+        closest_object is a list of object class that has the id, name, relations to other objects
+        object class has:
+            - name
+            - id
+            - relation
+            - coordinates from zed
+    """
+
+    def compute_quadrant(self, new_object, closest_objects):
         # object_center_x = ((bounding_box[2][0] - bounding_box[0][0]) / 2) - center_x
         # object_center_y = ((bounding_box[2][1] - bounding_box[0][1]) / 2) - center_y
-        object_center_x = ((bounding_box[2][0] - bounding_box[0][0]) / 2)
-        object_center_y = ((bounding_box[2][1] - bounding_box[0][1]) / 2)
+        # object_center_x = ((bounding_box[2][0] - bounding_box[0][0]) / 2)
+        # object_center_y = ((bounding_box[2][1] - bounding_box[0][1]) / 2)
 
-        abs_object_center_x = abs(object_center_x)
-        abs_object_center_y = abs(object_center_y)
+        center_x = new_object.pos[0]
+        center_y = new_object.pos[1]
 
-        return 'N'  # TODO: remove, was used for debugging
-        if abs_object_center_x > abs_object_center_y and object_center_x > 0 and object_center_y > 0:
-            return "NE"
-        if abs_object_center_x > abs_object_center_y and object_center_x > 0 > object_center_y < 0:
-            return "SE"
-        if abs_object_center_x > abs_object_center_y and object_center_x < 0 and object_center_y > 0:
-            return "NW"
-        if abs_object_center_x > abs_object_center_y and object_center_x < 0 and object_center_y < 0:
-            return "SW"
-        if abs_object_center_x < abs_object_center_y and object_center_y > 0:
-            return "N"
-        if abs_object_center_x < abs_object_center_y and object_center_y < 0:
-            return "S"
+        # (left, front, right, back)
+        relative_position = [-1, -1, -1, -1]
 
-    def euclidean_distance(self,x1, y1, z1, x2, y2, z2):
+        for ex_object in closest_objects:
+            obj_x = ex_object.pos[0] - center_x
+            obj_y = ex_object.pos[1] - center_y
+
+            # right object
+            if abs(obj_x) > abs(obj_y) and obj_x > 0:
+                relative_position[2] = ex_object.object_name
+                ex_object.relations[0] = new_object.object_name
+            # left object
+            if abs(obj_x) > abs(obj_y) and obj_x < 0:
+                relative_position[0] = ex_object.object_name
+                ex_object.relations[2] = new_object.object_name
+                # front object
+            if abs(obj_x) < abs(obj_y) and obj_y > 0:
+                relative_position[1] = ex_object.object_name
+                ex_object.relations[3] = new_object.object_name
+                # back object
+            if abs(obj_x) < abs(obj_y) and obj_y < 0:
+                relative_position[3] = ex_object.object_name
+                ex_object.relations[0] = new_object.object_name
+        new_object.set_new_relation(tuple(relative_position))
+        return new_object
+
+    def euclidean_distance(self, x1, y1, z1, x2, y2, z2):
         return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2 + (z2 - z1) ** 2)
 
     def checkEq(self, nd1, nd2):
@@ -72,7 +88,6 @@ class BaselineModel:
         return (nd1 != nd2) and (splt1 == splt2)
 
     def compute_distance(self, bounding_box, skeleton):
-        global center_x, center_y
         ## TODO: IMPLEMENT FOR Z AXIS
 
         # Bounding box needs to be in the form of a 4x2 array, output of xywh_to_abcd.
@@ -84,14 +99,16 @@ class BaselineModel:
 
         # Skeleton needs to be an array of 34 keypoints
         # Normalize Chest X
-        left_hand = np.array([skeleton[7][0], skeleton[7][1], skeleton[7][2]]) # chest_x subtrction
+        left_hand = np.array([skeleton[7][0], skeleton[7][1], skeleton[7][2]])  # chest_x subtrction
         right_hand = np.array([skeleton[4][0], skeleton[4][1], skeleton[4][2]])
         # print("Left {}\n Right {}".format(left_hand, right_hand))
         # print("Objects: ", center_object)
 
         # Compute distance
-        object_lefthand = self.euclidean_distance(left_hand[0], left_hand[1], left_hand[2], center_object[0], center_object[1], center_object[2])
-        object_righthand = self.euclidean_distance(right_hand[0], right_hand[1], right_hand[2], center_object[0], center_object[1], center_object[2])
+        object_lefthand = self.euclidean_distance(left_hand[0], left_hand[1], left_hand[2], center_object[0],
+                                                  center_object[1], center_object[2])
+        object_righthand = self.euclidean_distance(right_hand[0], right_hand[1], right_hand[2], center_object[0],
+                                                   center_object[1], center_object[2])
 
         # avg_distance = (object_lefthand + object_righthand) / 2.0
         # print('Dstance:', avg_distance)
@@ -115,7 +132,7 @@ class BaselineModel:
             if self.checkEq(current_node, predicted_node):
                 hit_count += 1
             previous_node = current_node
-        return hit_count/(len(nodes)-1)
+        return hit_count / (len(nodes) - 1)
 
     def yolo_predict(self, node):
         split1 = set(node.split("_"))
@@ -159,4 +176,6 @@ if __name__ == "__main__":
 
     baseline_model = BaselineModel(graph.get_graph(), configuration)
     # print(baseline_model.predict("Cup000_root"))
-    print(baseline_model.make_predictions(["root", "Crate111_root", "Gold000_Crate111_root", "Gold000_Crate111_Cup000_root","Gold000_Feeder222_Crate111_Cup000_root"]))
+    print(baseline_model.make_predictions(
+        ["root", "Crate111_root", "Gold000_Crate111_root", "Gold000_Crate111_Cup000_root",
+         "Gold000_Feeder222_Crate111_Cup000_root"]))
