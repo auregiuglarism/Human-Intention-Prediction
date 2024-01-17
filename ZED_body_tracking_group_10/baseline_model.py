@@ -47,39 +47,55 @@ class BaselineModel:
     def compute_quadrant(self, new_object, objLst, configr):
         center_x = new_object.pos[0]
         # center_y = new_object.pos[1]
+        relation_place = False
 
         # (left, front, right, back)
         relative_position = ["-1", "-1", "-1", "-1"]
 
         closest_objects = self.findNN(new_object.pos, objLst)
+        changedObjects = []
 
         for ex_object in closest_objects:
             obj_x = ex_object.pos[0] - center_x
             # obj_y = ex_object.pos[1] - center_y
+
 
             # right object
             # if abs(obj_x) > abs(obj_y) and obj_x > 0:
             if obj_x>0:
                 relative_position[2] = ex_object.name
                 ex_object.relations[0] = new_object.name
+                changedObjects.append(ex_object)
+                relation_place = True
             # left object
             # if abs(obj_x) > abs(obj_y) and obj_x < 0:
             if obj_x<0:
                 relative_position[0] = ex_object.name
                 ex_object.relations[2] = new_object.name
+                changedObjects.append(ex_object)
+                relation_place = True
                 # front object
             # if abs(obj_x) < abs(obj_y) and obj_y > 0:
             #     relative_position[1] = ex_object.name
             #     ex_object.relations[3] = new_object.name
+            #     changedObjects.append(ex_object)
             #     back object
             # if abs(obj_x) < abs(obj_y) and obj_y < 0:
             #     relative_position[3] = ex_object.name
             #     ex_object.relations[0] = new_object.name
+            #     changedObjects.append(ex_object)
 
         new_object.set_new_relation(relative_position)
+        name = self.determineName(new_object, configr)
+        for chgd_obj in changedObjects:
+            relations = chgd_obj.relations
+            for relation in range(len(relations)):
+                if relations[relation] == "Name":
+                    relations[relation] = name
+
         self.updateNames(objLst, configr)
 
-        return self.determineName(new_object, configr)
+        return name
 
     # Return nearest neighbours to the given coordinate point
     # objLst - list of already placed objects e.g. [("Cup0", (1, 3, 2)), ("Crate0", (1.2, 2.4, 0.5)), ...]

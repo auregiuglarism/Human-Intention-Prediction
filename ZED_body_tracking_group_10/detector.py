@@ -258,7 +258,7 @@ class ZedObjectDetection:
 
                         if (self.baseline.G.has_node(name)):
                             self.node_name = name  # keep track of placed objects
-
+                            print("name: ", name)
                             pred = self.baseline.yolo_predict(name)
                             print("Prediction ", pred)
                             sleep(3) #TODO: remove, was used for debugging
