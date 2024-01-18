@@ -47,44 +47,49 @@ class BaselineModel:
 
     def compute_quadrant(self, new_object, objLst, configr):
         center_x = new_object.pos[0]
-        # center_y = new_object.pos[1]
-        relation_place = False
+        center_y = new_object.pos[1]
 
         # (left, front, right, back)
         relative_position = ["-1", "-1", "-1", "-1"]
+        dist_neighbor = [999.0, 999.0, 999.0, 999.0]
 
-        closest_objects = self.findNN(new_object.pos, objLst)
+        closest_objects, nn_distances = self.findNN(new_object.pos, objLst)
         changedObjects = []
 
+        cntr = 0
         for ex_object in closest_objects:
             obj_x = ex_object.pos[0] - center_x
-            # obj_y = ex_object.pos[1] - center_y
+            obj_y = ex_object.pos[1] - center_y
+
+            current_dist = nn_distances[0][cntr]
 
 
             # right object
-            # if abs(obj_x) > abs(obj_y) and obj_x > 0:
-            if obj_x>0:
+            if abs(obj_x) > abs(obj_y) and obj_x > 0 and (current_dist < dist_neighbor[2]):
                 relative_position[2] = ex_object.name
                 ex_object.relations[0] = new_object.name
+                dist_neighbor[2] = current_dist
                 changedObjects.append(ex_object)
-                relation_place = True
             # left object
-            # if abs(obj_x) > abs(obj_y) and obj_x < 0:
-            if obj_x<0:
+            if abs(obj_x) > abs(obj_y) and obj_x < 0 and (current_dist < dist_neighbor[0]):
                 relative_position[0] = ex_object.name
                 ex_object.relations[2] = new_object.name
+                dist_neighbor[0] = current_dist
                 changedObjects.append(ex_object)
-                relation_place = True
                 # front object
-            # if abs(obj_x) < abs(obj_y) and obj_y > 0:
-            #     relative_position[1] = ex_object.name
-            #     ex_object.relations[3] = new_object.name
-            #     changedObjects.append(ex_object)
-            #     back object
-            # if abs(obj_x) < abs(obj_y) and obj_y < 0:
-            #     relative_position[3] = ex_object.name
-            #     ex_object.relations[0] = new_object.name
-            #     changedObjects.append(ex_object)
+            if abs(obj_x) < abs(obj_y) and obj_y > 0 and (current_dist < dist_neighbor[1]):
+                relative_position[1] = ex_object.name
+                ex_object.relations[3] = new_object.name
+                dist_neighbor[1] = current_dist
+                changedObjects.append(ex_object)
+                # back object
+            if abs(obj_x) < abs(obj_y) and obj_y < 0 and (current_dist < dist_neighbor[3]):
+                relative_position[3] = ex_object.name
+                ex_object.relations[0] = new_object.name
+                dist_neighbor[3] = current_dist
+                changedObjects.append(ex_object)
+
+            cntr+=1
 
         new_object.set_new_relation(relative_position)
         name = self.determineName(new_object, configr)
@@ -145,13 +150,13 @@ class BaselineModel:
             neighbrhd = len(crdLst)
         if neighbrhd>0:
             nbrs = NearestNeighbors(n_neighbors=neighbrhd, algorithm='ball_tree').fit(crdLst)
-            nbrs_idx = nbrs.kneighbors([newObjPos], return_distance=False)
+            nbrs_idx = nbrs.kneighbors([newObjPos], return_distance=True)
             nn_objs = []
-            for idx in nbrs_idx:
-                nn_objs.append(objLst[idx[0]])
-            return nn_objs
+            for idx in nbrs_idx[1][0]:
+                nn_objs.append(objLst[idx])
+            return nn_objs, nbrs_idx[0]
         else:
-            return []
+            return [], []
     def euclidean_distance(self,x1, y1, z1, x2, y2, z2):
         return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2 + (z2 - z1) ** 2)
 
@@ -165,10 +170,6 @@ class BaselineModel:
         ## TODO: IMPLEMENT FOR Z AXIS
 
         # Bounding box needs to be in the form of a 4x2 array, output of xywh_to_abcd.
-        # center_x = (bounding_box[0][0] - bounding_box[3][0]) / 2
-        # center_y = (bounding_box[0][1] - bounding_box[4][1]) / 2
-        # center_z = (bounding_box[0][2] - bounding_box[1][2]) /2
-        # center_object = np.array([center_x, center_y, center_z])
         center_object = np.array(bounding_box)
 
         # Skeleton needs to be an array of 34 keypoints
