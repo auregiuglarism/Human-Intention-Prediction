@@ -25,11 +25,17 @@ exit_signal = False
 
 class ZedObjectDetection:
     def __init__(self, config, baseline):
+        # self.body_runtime_param = None
+        # self.bodies = None
+        # self.runtime_params = None
+        # self.zed = None
+        self.delayed_holding = True
+        self.flicker_list = []
         self.config = config
         self.baseline = baseline
         self.node_name = "root"
         self.frame_size_set = False
-        self.map_raw_to_label = {"0": "Crate", "1": "Feeder","2":"Cup" }
+        self.map_raw_to_label = {"0": "Crate", "1": "Feeder", "2": "Cup"}
 
         # Flood gate variables
         self.holding = False
@@ -107,10 +113,98 @@ class ZedObjectDetection:
                 run_signal = False
             sleep(0.01)
 
+    def initZed(self, zed):
+        input_type = sl.InputType()
+        if opt.svo is not None:
+            input_type.set_from_svo_file(opt.svo)
+
+        # Create a InitParameters object and set configuration parameters
+        # https://www.stereolabs.com/docs/video/camera-controls/
+        init_params = sl.InitParameters()
+        init_params.coordinate_units = sl.UNIT.METER
+        init_params.camera_resolution = sl.RESOLUTION.HD2K  # HD720 for extra wide FOV
+        init_params.camera_fps = 30  # 15 fps for better depth quality under low light
+        init_params.depth_mode = sl.DEPTH_MODE.ULTRA  # depth quality
+        init_params.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
+        init_params.depth_maximum_distance = 10  # distance in coordinate_units (should be 10 meters)
+
+        self.runtime_params = sl.RuntimeParameters()
+        status = zed.open(init_params)
+
+        if status != sl.ERROR_CODE.SUCCESS:
+            print(repr(status))
+            exit()
+
+        image_left_tmp = sl.Mat()
+
+        print("Initialized Camera")
+
+        positional_tracking_parameters = sl.PositionalTrackingParameters()
+        # If the camera is not static, comment the following line to have better performances
+        positional_tracking_parameters.set_as_static = True
+        zed.enable_positional_tracking(positional_tracking_parameters)
+
+        obj_param = sl.ObjectDetectionParameters()
+        obj_param.instance_module_id = 0
+        obj_param.detection_model = sl.OBJECT_DETECTION_MODEL.CUSTOM_BOX_OBJECTS
+        obj_param.enable_tracking = True
+        obj_param.enable_segmentation = True
+        zed.enable_object_detection(obj_param)
+
+        body_tracking_parameters = sl.BodyTrackingParameters()
+        body_tracking_parameters.instance_module_id = 1
+        body_tracking_parameters.detection_model = sl.BODY_TRACKING_MODEL.HUMAN_BODY_ACCURATE
+        body_tracking_parameters.body_format = sl.BODY_FORMAT.BODY_18
+        body_tracking_parameters.enable_body_fitting = True
+        body_tracking_parameters.enable_tracking = True
+
+        error_code = zed.enable_body_tracking(body_tracking_parameters)
+        if (error_code != sl.ERROR_CODE.SUCCESS):
+            print("Can't enable positionnal tracking: ", error_code)
+
+        self.bodies = sl.Bodies()
+        self.body_runtime_param = sl.BodyTrackingRuntimeParameters()
+        objects = sl.Objects()
+        obj_runtime_param = sl.ObjectDetectionRuntimeParameters()
+        obj_runtime_param.detection_confidence_threshold = 30
+
+        # Display
+        camera_infos = zed.get_camera_information()
+        camera_res = camera_infos.camera_configuration.resolution
+
+        point_cloud_res = sl.Resolution(min(camera_res.width, 720), min(camera_res.height, 404))
+        # point_cloud_res = sl.Resolution(camera_res.width, camera_res.height)
+        point_cloud = sl.Mat(point_cloud_res.width, point_cloud_res.height, sl.MAT_TYPE.F32_C4, sl.MEM.CPU)
+
+        image_left = sl.Mat()
+
+        # Utilities for 2D display
+        display_resolution = sl.Resolution(min(camera_res.width, 1280), min(camera_res.height, 720))
+        # display_resolution = sl.Resolution(camera_res.width, camera_res.height)
+        image_scale = [display_resolution.width / camera_res.width, display_resolution.height / camera_res.height]
+        image_left_ocv = np.full((display_resolution.height, display_resolution.width, 4), [245, 239, 239, 255],
+                                 np.uint8)
+
+        # Utilities for tracks view
+        camera_config = camera_infos.camera_configuration
+        tracks_resolution = sl.Resolution(400, display_resolution.height)
+        track_view_generator = cv_viewer.TrackingViewer(tracks_resolution, camera_config.fps,
+                                                        init_params.depth_maximum_distance)
+        track_view_generator.set_camera_calibration(camera_config.calibration_parameters)
+        image_track_ocv = np.zeros((tracks_resolution.height, tracks_resolution.width, 4), np.uint8)
+        # Camera pose
+        cam_w_pose = sl.Pose()
+
+        return (objects, obj_param, obj_runtime_param, body_tracking_parameters, image_left_tmp,
+                point_cloud, point_cloud_res, image_left, display_resolution, cam_w_pose, image_left_ocv, image_scale,
+                image_track_ocv, track_view_generator)
+
+    def retrieve_bodies(self):
+        self.zed.retrieve_bodies(self.bodies, self.body_runtime_param, self.body_tracking_parameters.instance_module_id)
+
     # main thread
     def main(self):
         global image_net, exit_signal, run_signal, detections
-        pred = None
 
         capture_thread = Thread(target=self.torch_thread,
                                 kwargs={'weights': opt.weights, 'img_size': opt.img_size, "conf_thres": opt.conf_thres,
@@ -175,8 +269,6 @@ class ZedObjectDetection:
         obj_runtime_param = sl.ObjectDetectionRuntimeParameters()
         obj_runtime_param.detection_confidence_threshold = 30
 
-
-
         # Display
         camera_infos = zed.get_camera_information()
         camera_res = camera_infos.camera_configuration.resolution
@@ -203,6 +295,8 @@ class ZedObjectDetection:
         image_track_ocv = np.zeros((tracks_resolution.height, tracks_resolution.width, 4), np.uint8)
         # Camera pose
         cam_w_pose = sl.Pose()
+
+        print("Initializing All Parameters")
 
         skeleton_data = []
         while not exit_signal:
@@ -242,14 +336,20 @@ class ZedObjectDetection:
 
                 ## OUR CODE ##
                 print("Length of skeleton data: ", len(skeleton_data[-1]['body_list']))
-                print("Length of object list ", len(objects.object_list))
+                # print("Length of object list ", len(objects.object_list))
 
-                if len(skeleton_data[-1]['body_list']) > 0 and len(objects.object_list) > 0:
+                self.flicker_method(self.holding)
+                if len(skeleton_data[-1]['body_list']) > 0:
                     # print(self.obj_num)
-                    print(len(objects.object_list))
+                    # print(len(objects.object_list))
                     object = self.get_close_object(objects.object_list, skeleton_data[-1]['body_list'][-1])
-                    print('hold: ', self.holding)
-                    if object is not None and self.prevHolding and not self.holding:
+                    print("Object: ", object is not None)
+                    print("prev_hold ", self.prevHolding)
+                    # print('hold: ', self.holding)
+                    print("Delayed holding ", not self.delayed_holding)
+
+
+                    if object is not None and self.prevHolding and not self.delayed_holding:
                         newObj = Object(self.map_raw_to_label[str(object.raw_label)], object.position.tolist())
                         obj_name = self.baseline.compute_quadrant(newObj, self.plcdObjs, self.baseline.known_objects)
                         new_name = "root"
@@ -257,22 +357,23 @@ class ZedObjectDetection:
                             new_name = obj.name + "_" + new_name
                         name = obj_name + "_" + new_name
                         self.plcdObjs.append(newObj)
+                        print("obj_name ", obj_name)
 
-                        if (self.baseline.configuration.hasNode(name)):
+                        if self.baseline.configuration.hasNode(name):
                             self.node_name = name  # keep track of placed objects
                             print("name: ", name)
                             pred = self.baseline.yolo_predict(name)
                             print("Prediction ", pred)
-                            sleep(3) #TODO: remove, was used for debugging
+                            # sleep(3)  # TODO: remove, was used for debugging
                             print()
                         else:
                             print("name: ", name)
                             print("Wrong placement")
-                    self.prevHolding = self.holding
+                    self.prevHolding = self.delayed_holding
                 # for obj in objects.object_list:
-                    # print("ID: {} \nPos: {} \n3D Box: {} \nConf: {} \nClass: {}".format(obj.id, obj.position,
-                    #                                                                     obj.bounding_box,
-                    #                                                                     obj.confidence, obj.raw_label))
+                # print("ID: {} \nPos: {} \n3D Box: {} \nConf: {} \nClass: {}".format(obj.id, obj.position,
+                #                                                                     obj.bounding_box,
+                #                                                                     obj.confidence, obj.raw_label))
 
                 # 2D rendering
                 np.copyto(image_left_ocv, image_left.get_data())
@@ -296,7 +397,8 @@ class ZedObjectDetection:
         min_dist = float('inf')
 
         for obj in object_list:
-            distance_right, distance_left = self.baseline.compute_distance(obj.position, skeleton['keypoint']) #'keypoint'
+            distance_right, distance_left = self.baseline.compute_distance(obj.position,
+                                                                           skeleton['keypoint'])  # 'keypoint'
             if distance_right < min_dist:
                 prob_object = obj
                 min_dist = distance_right
@@ -310,11 +412,18 @@ class ZedObjectDetection:
             self.holding = True
             return prob_object
 
-        self.holding = False # not changing
+        self.holding = False  # not changing
 
-        if (self.prevHolding==True): # if letting go return closest object
+        if self.prevHolding:  # if letting go return closest object
             return prob_object
         return None
+
+    def flicker_method(self, holding):
+        self.flicker_list.append(holding)
+        if len(self.flicker_list) > 15:
+            self.flicker_list = self.flicker_list[1:]
+        self.delayed_holding = np.bincount(np.array(self.flicker_list)).argmax()
+
 
 
 if __name__ == '__main__':
