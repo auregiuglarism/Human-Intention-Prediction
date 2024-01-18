@@ -252,11 +252,13 @@ class ZedObjectDetection:
                     if object is not None and self.prevHolding and not self.holding:
                         newObj = Object(self.map_raw_to_label[str(object.raw_label)], object.position.tolist())
                         obj_name = self.baseline.compute_quadrant(newObj, self.plcdObjs, self.baseline.known_objects)
-
-                        name = obj_name + "_" + self.node_name
+                        new_name = "root"
+                        for obj in self.plcdObjs:
+                            new_name = obj.name + "_" + new_name
+                        name = obj_name + "_" + new_name
                         self.plcdObjs.append(newObj)
 
-                        if (self.baseline.G.has_node(name)):
+                        if (self.baseline.configuration.hasNode(name)):
                             self.node_name = name  # keep track of placed objects
                             print("name: ", name)
                             pred = self.baseline.yolo_predict(name)
@@ -264,6 +266,7 @@ class ZedObjectDetection:
                             sleep(3) #TODO: remove, was used for debugging
                             print()
                         else:
+                            print("name: ", name)
                             print("Wrong placement")
                     self.prevHolding = self.holding
                 # for obj in objects.object_list:
@@ -330,7 +333,7 @@ if __name__ == '__main__':
     config.initGraph(graph)
     config.assign_probs()
 
-    baseline_model = baseline_model.BaselineModel(config.get_graph(), graph)
+    baseline_model = baseline_model.BaselineModel(config, config.get_graph(), graph)
 
     # model1 = YOLO('/home/kamil/PycharmProjects/Project3-1_WORKING_ZED/ZED_body_tracking_group_10/Models/best.pt')
 

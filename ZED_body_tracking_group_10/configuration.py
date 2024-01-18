@@ -50,6 +50,12 @@ class Configuration:
 
         return (nd1!=nd2) and (splt1 == splt2)
 
+    def checkEq_baseline(self, nd1, nd2):
+        splt1 = set(nd1.split("_"))
+        splt2 = set(nd2.split("_"))
+
+        return (splt1 == splt2)
+
     def assign_probs(self):
         G = self.G
         for node in G.nodes:
@@ -60,12 +66,17 @@ class Configuration:
     def get_graph(self):
         return self.G
 
+    def hasNode(self, newName):
+        for n in self.G.nodes:
+            if (self.checkEq_baseline(newName, n)): return True
+        return False
+
 
 if __name__ == "__main__":
-    configuration = [("Cup", (0,0,0), (1,1)),
-                         ("Crate", (1,1,1), (2,2)),
-                         ("Feeder", (2,2,2), (1,2)),
-                         ("Cup", (1,2,1), ((1,1)))]
+    configuration = [("Cup", (0), ("-1", "-1", "Crate0", "-1")),
+             ("Crate", (0), ("Cup0", "-1", "Cup1", "-1")),
+             ("Cup", (1), ("Crate0", "-1", "-1", "-1"))]
+
     graph = Configuration()
     graph.initGraph(configuration)
     graph.assign_probs()

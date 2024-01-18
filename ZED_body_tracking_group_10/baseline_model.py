@@ -8,8 +8,9 @@ import math as Math
 
 
 class BaselineModel:
-    def __init__(self, G=None, known_objects=None):
+    def __init__(self, configuration=None, G=None, known_objects=None):
         self.G = G
+        self.configuration = configuration
         self.yolo_node = "root"
         self.known_objects = known_objects
         self.frame_x = 0.0
@@ -93,7 +94,7 @@ class BaselineModel:
                 if relations[relation] == "Name":
                     relations[relation] = name
 
-        self.updateNames(objLst, configr)
+        self.updateNames(objLst, configr)  # TODO: problem
 
         return name
 
@@ -127,7 +128,9 @@ class BaselineModel:
                 best_match = match
 
         if (best_name=="None" and len(cnfgr_rltns) != 0):  # assign random if still None
+            print("random name")
             best_name = cnfgr_rltns[random.randint(0, len(cnfgr_rltns)-1)][0]
+            print("best random name: ", best_name)
 
         new_object.name = best_name
         return best_name
