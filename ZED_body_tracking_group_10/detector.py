@@ -20,6 +20,8 @@ import baseline_model
 from ZED_body_tracking_group_10.Object import Object
 from ZED_body_tracking_group_10.Record_Skeleton_Data import serializeBodies
 
+import math
+
 lock = Lock()
 run_signal = False
 exit_signal = False
@@ -120,92 +122,6 @@ class ZedObjectDetection:
                 lock.release()
                 run_signal = False
             sleep(0.01)
-
-    def initZed(self, zed):
-        input_type = sl.InputType()
-        if opt.svo is not None:
-            input_type.set_from_svo_file(opt.svo)
-
-        # Create a InitParameters object and set configuration parameters
-        # https://www.stereolabs.com/docs/video/camera-controls/
-        init_params = sl.InitParameters()
-        init_params.coordinate_units = sl.UNIT.METER
-        init_params.camera_resolution = sl.RESOLUTION.HD2K  # HD720 for extra wide FOV
-        init_params.camera_fps = 30  # 15 fps for better depth quality under low light
-        init_params.depth_mode = sl.DEPTH_MODE.ULTRA  # depth quality
-        init_params.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
-        init_params.depth_maximum_distance = 10  # distance in coordinate_units (should be 10 meters)
-
-        self.runtime_params = sl.RuntimeParameters()
-        status = zed.open(init_params)
-
-        if status != sl.ERROR_CODE.SUCCESS:
-            print(repr(status))
-            exit()
-
-        image_left_tmp = sl.Mat()
-
-        print("Initialized Camera")
-
-        positional_tracking_parameters = sl.PositionalTrackingParameters()
-        # If the camera is not static, comment the following line to have better performances
-        positional_tracking_parameters.set_as_static = True
-        zed.enable_positional_tracking(positional_tracking_parameters)
-
-        obj_param = sl.ObjectDetectionParameters()
-        obj_param.instance_module_id = 0
-        obj_param.detection_model = sl.OBJECT_DETECTION_MODEL.CUSTOM_BOX_OBJECTS
-        obj_param.enable_tracking = True
-        obj_param.enable_segmentation = True
-        zed.enable_object_detection(obj_param)
-
-        body_tracking_parameters = sl.BodyTrackingParameters()
-        body_tracking_parameters.instance_module_id = 1
-        body_tracking_parameters.detection_model = sl.BODY_TRACKING_MODEL.HUMAN_BODY_ACCURATE
-        body_tracking_parameters.body_format = sl.BODY_FORMAT.BODY_18
-        body_tracking_parameters.enable_body_fitting = True
-        body_tracking_parameters.enable_tracking = True
-
-        error_code = zed.enable_body_tracking(body_tracking_parameters)
-        if (error_code != sl.ERROR_CODE.SUCCESS):
-            print("Can't enable positionnal tracking: ", error_code)
-
-        self.bodies = sl.Bodies()
-        self.body_runtime_param = sl.BodyTrackingRuntimeParameters()
-        objects = sl.Objects()
-        obj_runtime_param = sl.ObjectDetectionRuntimeParameters()
-        obj_runtime_param.detection_confidence_threshold = 30
-
-        # Display
-        camera_infos = zed.get_camera_information()
-        camera_res = camera_infos.camera_configuration.resolution
-
-        point_cloud_res = sl.Resolution(min(camera_res.width, 720), min(camera_res.height, 404))
-        # point_cloud_res = sl.Resolution(camera_res.width, camera_res.height)
-        point_cloud = sl.Mat(point_cloud_res.width, point_cloud_res.height, sl.MAT_TYPE.F32_C4, sl.MEM.CPU)
-
-        image_left = sl.Mat()
-
-        # Utilities for 2D display
-        display_resolution = sl.Resolution(min(camera_res.width, 1280), min(camera_res.height, 720))
-        # display_resolution = sl.Resolution(camera_res.width, camera_res.height)
-        image_scale = [display_resolution.width / camera_res.width, display_resolution.height / camera_res.height]
-        image_left_ocv = np.full((display_resolution.height, display_resolution.width, 4), [245, 239, 239, 255],
-                                 np.uint8)
-
-        # Utilities for tracks view
-        camera_config = camera_infos.camera_configuration
-        tracks_resolution = sl.Resolution(400, display_resolution.height)
-        track_view_generator = cv_viewer.TrackingViewer(tracks_resolution, camera_config.fps,
-                                                        init_params.depth_maximum_distance)
-        track_view_generator.set_camera_calibration(camera_config.calibration_parameters)
-        image_track_ocv = np.zeros((tracks_resolution.height, tracks_resolution.width, 4), np.uint8)
-        # Camera pose
-        cam_w_pose = sl.Pose()
-
-        return (objects, obj_param, obj_runtime_param, body_tracking_parameters, image_left_tmp,
-                point_cloud, point_cloud_res, image_left, display_resolution, cam_w_pose, image_left_ocv, image_scale,
-                image_track_ocv, track_view_generator)
 
     def retrieve_bodies(self):
         self.zed.retrieve_bodies(self.bodies, self.body_runtime_param, self.body_tracking_parameters.instance_module_id)
@@ -349,9 +265,9 @@ class ZedObjectDetection:
                 # print("Length of object list ", len(objects.object_list))
 
 
-                if tmpLen < len(objects.object_list):
-                    print()
-                tmpLen = len(objects.object_list)
+                # if tmpLen < len(objects.object_list):
+                #     print()
+                # tmpLen = len(objects.object_list)
 
                 knnLabels = self.getLabelsKNN(objects.object_list)  # able to track the label of slowly moving object
                 # But the not moving objects have slightly changing
@@ -371,6 +287,8 @@ class ZedObjectDetection:
                     # print(self.obj_num)
                     # print(len(objects.object_list))
                     # object = self.get_close_object(objects.object_list, skeleton_data[-1]['body_list'][-1])
+                    if (self.prevHolding and not self.delayed_holding):
+                        print()
                     object = self.get_avg_dists()
                     # print("Object: ", object is not None)
                     # print("prev_hold ", self.prevHolding)
@@ -474,13 +392,19 @@ class ZedObjectDetection:
 
         print("avg_dist: ", avg_dist)
         for label, distance_right, distance_left, raw_label, pos in avg_dist:
-            if distance_right < min_dist:
-                prob_object = [label, raw_label, pos]
-                min_dist = distance_right
+            if distance_right < distance_left:
+                distance_current = distance_right
+            else:
+                distance_current = distance_left
 
-            elif distance_left < min_dist:
+            if distance_current < min_dist:
                 prob_object = [label, raw_label, pos]
-                min_dist = distance_left
+                min_dist = distance_current
+            #
+            # if distance_left < min_dist:
+            #     prob_object = [label, raw_label, pos]
+            #     min_dist = distance_left
+
         print("min_dist: ", min_dist)
         if min_dist < threshold:
             self.holding = True
@@ -494,7 +418,7 @@ class ZedObjectDetection:
 
     def flicker_method(self, holding):
         self.flicker_list.append(holding)
-        if len(self.flicker_list) > 15:
+        if len(self.flicker_list) > 1:
             self.flicker_list = self.flicker_list[1:]
         self.delayed_holding = mode(self.flicker_list)
 
@@ -511,26 +435,28 @@ class ZedObjectDetection:
             labelLst = []
             for frmObjs in self.five_maps:
                 for obj in frmObjs:
-                    labelLst.append(obj[0])
-                    crdLst.append(obj[1])
+                    if not math.isnan(obj[1][0]):
+                        labelLst.append(obj[0])
+                        crdLst.append(obj[1])
 
             if (len(self.five_maps) < 3):
                 neighs = 1
             nbrs = NearestNeighbors(n_neighbors=neighs, algorithm='ball_tree', radius=rad).fit(crdLst)
 
             for obj in object_list:
-                dist, nbrs_idx = nbrs.radius_neighbors([obj.position], return_distance=True)
-                dist, nbrs_idx = zip(*sorted(zip(dist, nbrs_idx)))  # sort in ascending order by distance
-                nbrs_idx = nbrs_idx[0][:neighs]  # get closest ones
+                if not math.isnan(obj.position[0]):
+                    dist, nbrs_idx = nbrs.radius_neighbors([obj.position], return_distance=True)
+                    dist, nbrs_idx = zip(*sorted(zip(dist, nbrs_idx)))  # sort in ascending order by distance
+                    nbrs_idx = nbrs_idx[0][:neighs]  # get closest ones
 
-                obj_lbls = []
-                for idx in nbrs_idx:
-                    obj_lbls.append(labelLst[idx])
-                if len(obj_lbls) >0:
-                    labels.append(mode(obj_lbls))
-                else:
-                    self.latest_id+=1
-                    labels.append(self.latest_id)  # assumption of new objects being at the end of the object list
+                    obj_lbls = []
+                    for idx in nbrs_idx:
+                        obj_lbls.append(labelLst[idx])
+                    if len(obj_lbls) >0:
+                        labels.append(mode(obj_lbls))
+                    else:
+                        self.latest_id+=1
+                        labels.append(self.latest_id)  # assumption of new objects being at the end of the object list
         return labels
 
     def updateKNN(self, knnLabels, object_list):
@@ -559,7 +485,7 @@ class ZedObjectDetection:
     def updateFifteenDst(self, frm_dists):
         if len(frm_dists) != 0:
             self.fifteen_dist.append(frm_dists)
-        if len(self.fifteen_dist) > 15:
+        if len(self.fifteen_dist) > 12:
             self.fifteen_dist = self.fifteen_dist[1:]
 
 
