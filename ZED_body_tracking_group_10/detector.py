@@ -43,6 +43,7 @@ class ZedObjectDetection:
         self.holding = False
         self.prevHolding = False
         self.plcdObjs = []
+        self.latest_id = -1
 
         # Delay variables
         self.five_maps = []  # map in this case corresponds to object list with coordinates
@@ -256,7 +257,7 @@ class ZedObjectDetection:
         obj_param.detection_model = sl.OBJECT_DETECTION_MODEL.CUSTOM_BOX_OBJECTS
         obj_param.enable_tracking = True
         obj_param.enable_segmentation = True
-        zed.enable_object_detection(obj_param)
+        zed.enable_object_detection(obj_param)  # still n important line even if doesn't set anything
 
         body_tracking_parameters = sl.BodyTrackingParameters()
         body_tracking_parameters.instance_module_id = 1
@@ -305,6 +306,8 @@ class ZedObjectDetection:
         print("Initializing All Parameters")
 
         skeleton_data = []
+
+        tmpLen = 0
         while not exit_signal:
             if zed.grab(runtime_params) == sl.ERROR_CODE.SUCCESS:
                 # -- Get skeleton and serialize it
@@ -344,8 +347,18 @@ class ZedObjectDetection:
                 print("Length of skeleton data: ", len(skeleton_data[-1]['body_list']))
                 # print("Length of object list ", len(objects.object_list))
 
-                knnLabels = self.getLabelsKNN(objects.object_list)
+
+                if tmpLen < len(objects.object_list):
+                    print()
+                tmpLen = len(objects.object_list)
+
+                knnLabels = self.getLabelsKNN(objects.object_list)  # able to track the label of slowly moving object
+                # But the not moving objects have slightly changing
+                # coordinates due to noise
+
                 single_frame_map = self.updateKNN(knnLabels, objects.object_list)
+                print(self.five_maps)
+                sleep(2)
 
                 self.flicker_method(self.holding)
                 if len(skeleton_data[-1]['body_list']) > 0:
@@ -386,9 +399,6 @@ class ZedObjectDetection:
                 # print("ID: {} \nPos: {} \n3D Box: {} \nConf: {} \nClass: {}".format(obj.id, obj.position,
                 #                                                                     obj.bounding_box,
                 #                                                                     obj.confidence, obj.raw_label))
-                for obj in objects.object_list:
-                    print("ID: {} \nRaw: {}".format(obj.id, obj.raw_label))
-                print()
 
                 # 2D rendering
                 np.copyto(image_left_ocv, image_left.get_data())
@@ -481,12 +491,14 @@ class ZedObjectDetection:
             self.flicker_list = self.flicker_list[1:]
         self.delayed_holding = mode(self.flicker_list)
 
-    def getLabelsKNN(self, object_list, neighs=3):
+    # rad based on distance calculation between observed objects
+    def getLabelsKNN(self, object_list, neighs=3, rad = 0.2):
         if len(object_list) == 0: return []
 
         labels = []
         if len(self.five_maps) == 0:
             labels = list(range(len(object_list)))
+            self.latest_id = len(labels)-1
         else:
             crdLst = []
             labelLst = []
@@ -497,14 +509,21 @@ class ZedObjectDetection:
 
             if (len(self.five_maps) < 3):
                 neighs = 1
-            nbrs = NearestNeighbors(n_neighbors=neighs, algorithm='ball_tree').fit(crdLst)
+            nbrs = NearestNeighbors(n_neighbors=neighs, algorithm='ball_tree', radius=rad).fit(crdLst)
 
             for obj in object_list:
-                nbrs_idx = nbrs.kneighbors([obj.position], return_distance=False)
+                dist, nbrs_idx = nbrs.radius_neighbors([obj.position], return_distance=True)
+                dist, nbrs_idx = zip(*sorted(zip(dist, nbrs_idx)))  # sort in ascending order by distance
+                nbrs_idx = nbrs_idx[0][:neighs]  # get closest ones
+
                 obj_lbls = []
-                for idx in nbrs_idx[0]:
+                for idx in nbrs_idx:
                     obj_lbls.append(labelLst[idx])
-                labels.append(mode(obj_lbls))
+                if len(obj_lbls) >0:
+                    labels.append(mode(obj_lbls))
+                else:
+                    self.latest_id+=1
+                    labels.append(self.latest_id)  # assumption of new objects being at the end of the object list
         return labels
 
     def updateKNN(self, knnLabels, object_list):
