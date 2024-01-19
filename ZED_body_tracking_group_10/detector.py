@@ -43,11 +43,12 @@ class ZedObjectDetection:
         self.holding = False
         self.prevHolding = False
         self.plcdObjs = []
-        self.latest_id = -1
 
         # Delay variables
         self.five_maps = []  # map in this case corresponds to object list with coordinates
         self.fifteen_dist = []  # list of 15 distances contains lists of objects with their left and right distances
+        self.latest_id = -1
+
 
     # converts xywh format (used by YOLO) to abcd format (used by ZED SDK)
     def xywh_to_abcd(self, xywh, im_shape):
@@ -357,13 +358,15 @@ class ZedObjectDetection:
                 # coordinates due to noise
 
                 single_frame_map = self.updateKNN(knnLabels, objects.object_list)
-                print(self.five_maps)
-                sleep(2)
+                # print(self.five_maps)
+                # sleep(1)
 
                 self.flicker_method(self.holding)
                 if len(skeleton_data[-1]['body_list']) > 0:
                     frm_dists = self.calcAllDistances(single_frame_map, skeleton_data[-1]['body_list'][-1])
+                    #print("frm_dists: ", frm_dists)
                     self.updateFifteenDst(frm_dists)
+                    print(self.fifteen_dist)
 
                     # print(self.obj_num)
                     # print(len(objects.object_list))
@@ -371,11 +374,11 @@ class ZedObjectDetection:
                     object = self.get_avg_dists()
                     # print("Object: ", object is not None)
                     # print("prev_hold ", self.prevHolding)
-                    # print('hold: ', self.holding)
+                    # print("del hld lst: ", self.flicker_list)
                     # print("Delayed holding ", not self.delayed_holding)
 
                     if object is not None and self.prevHolding and not self.delayed_holding:
-                        newObj = Object(self.map_raw_to_label[str(object.raw_label)], object.position.tolist())
+                        newObj = Object(self.map_raw_to_label[str(object[1])], object[2].tolist())
                         obj_name = self.baseline.compute_quadrant(newObj, self.plcdObjs, self.baseline.known_objects)
                         new_name = "root"
                         for obj in self.plcdObjs:
@@ -386,7 +389,7 @@ class ZedObjectDetection:
 
                         if self.baseline.configuration.hasNode(name):
                             self.node_name = name  # keep track of placed objects
-                            # print("name: ", name)
+                            print("name: ", name)
                             pred = self.baseline.yolo_predict(name)
                             print("Prediction ", pred)
                             sleep(3)  # TODO: remove, was used for debugging
@@ -449,6 +452,7 @@ class ZedObjectDetection:
         return None
 
     def get_avg_dists(self, threshold=0.28):
+        # [label, rdist, ldist, rawlabel, pos]
         prob_object = None
         min_dist = float('inf')
 
@@ -456,25 +460,28 @@ class ZedObjectDetection:
 
         # first find all unique labels
         for frame in self.fifteen_dist:
-            for obj, distR, distL in frame:
+            for obj, distR, distL, raw_label, pos in frame:
                 if obj not in avg_dist:
-                    avg_dist[obj] = [distR, distL, 1]
+                    avg_dist[obj] = [distR, distL, 1, raw_label, pos]
                 else:
                     avg_dist[obj][0] += distR
                     avg_dist[obj][1] += distL
                     avg_dist[obj][2] += 1
+                    avg_dist[obj][4] = pos
 
-        avg_dist = [[obj, avg_dist[obj][0] / avg_dist[obj][2], avg_dist[obj][1] / avg_dist[obj][2]] for obj in avg_dist]
+        avg_dist = [[obj, avg_dist[obj][0] / avg_dist[obj][2], avg_dist[obj][1] / avg_dist[obj][2], avg_dist[obj][3],
+                     avg_dist[obj][4]] for obj in avg_dist]
 
-        for label, distance_right, distance_left in avg_dist:
+        print("avg_dist: ", avg_dist)
+        for label, distance_right, distance_left, raw_label, pos in avg_dist:
             if distance_right < min_dist:
-                prob_object = label
+                prob_object = [label, raw_label, pos]
                 min_dist = distance_right
 
             elif distance_left < min_dist:
-                prob_object = label
+                prob_object = [label, raw_label, pos]
                 min_dist = distance_left
-
+        print("min_dist: ", min_dist)
         if min_dist < threshold:
             self.holding = True
             return prob_object
@@ -529,7 +536,7 @@ class ZedObjectDetection:
     def updateKNN(self, knnLabels, object_list):
         temp_list = []
         for i in range(len(knnLabels)):
-            temp_list.append([knnLabels[i], object_list[i].position])
+            temp_list.append([knnLabels[i], object_list[i].position, str(object_list[i].raw_label)])
 
         if len(temp_list) != 0:
             self.five_maps.append(temp_list)
@@ -544,7 +551,8 @@ class ZedObjectDetection:
 
         for obj in single_frame_map:
             distance_right, distance_left = self.baseline.compute_distance(obj[1], skeleton['keypoint'])  # 'keypoint'
-            output.append([obj[0], distance_right, distance_left])
+            # [label, rDist, lDist, rawLbl, Pos]
+            output.append([obj[0], distance_right, distance_left, obj[2], obj[1]])
 
         return output
 
