@@ -85,7 +85,7 @@ class BaselineModel:
                 # back object
             if abs(obj_x) < abs(obj_y) and obj_y < 0 and (current_dist < dist_neighbor[3]):
                 relative_position[3] = ex_object.name
-                ex_object.relations[0] = new_object.name
+                ex_object.relations[1] = new_object.name
                 dist_neighbor[3] = current_dist
                 changedObjects.append(ex_object)
 
@@ -99,7 +99,7 @@ class BaselineModel:
                 if relations[relation] == "Name":
                     relations[relation] = name
 
-        self.updateNames(objLst, configr)  # TODO: problem
+        self.updateNames(objLst, configr)
 
         return name
 
