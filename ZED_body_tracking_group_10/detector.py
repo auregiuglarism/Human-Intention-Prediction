@@ -290,6 +290,7 @@ class ZedObjectDetection:
                     if (self.prevHolding and not self.delayed_holding):
                         print()
                     object = self.get_avg_dists()
+                    # print(object)
                     # print("Object: ", object is not None)
                     # print("prev_hold ", self.prevHolding)
                     # print("del hld lst: ", self.flicker_list)
@@ -312,6 +313,8 @@ class ZedObjectDetection:
                             print("Prediction ", pred)
                             sleep(3)  # TODO: remove, was used for debugging
                             print()
+                            if (len(self.plcdObjs) == len(self.baseline.known_objects)):
+                                exit_signal = True
                         else:
                             # print("name: ", name)
                             print("Wrong placement")
@@ -369,7 +372,7 @@ class ZedObjectDetection:
             return prob_object
         return None
 
-    def get_avg_dists(self, threshold=0.28):
+    def get_avg_dists(self, threshold=0.32):
         # [label, rdist, ldist, rawlabel, pos]
         prob_object = None
         min_dist = float('inf')
@@ -476,16 +479,17 @@ class ZedObjectDetection:
         output = []
 
         for obj in single_frame_map:
-            distance_right, distance_left = self.baseline.compute_distance(obj[1], skeleton['keypoint'])  # 'keypoint'
-            # [label, rDist, lDist, rawLbl, Pos]
-            output.append([obj[0], distance_right, distance_left, obj[2], obj[1]])
+            if not (math.isnan(obj[1][0]) or math.isnan(obj[1][1]) or math.isnan(obj[1][2])):
+                distance_right, distance_left = self.baseline.compute_distance(obj[1], skeleton['keypoint'])  # 'keypoint'
+                # [label, rDist, lDist, rawLbl, Pos]
+                output.append([obj[0], distance_right, distance_left, obj[2], obj[1]])
 
         return output
 
     def updateFifteenDst(self, frm_dists):
         if len(frm_dists) != 0:
             self.fifteen_dist.append(frm_dists)
-        if len(self.fifteen_dist) > 12:
+        if len(self.fifteen_dist) > 7:
             self.fifteen_dist = self.fifteen_dist[1:]
 
 

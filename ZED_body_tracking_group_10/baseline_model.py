@@ -132,10 +132,6 @@ class BaselineModel:
                 best_name = tup[0]
                 best_match = match
 
-        if (best_name=="None" and len(cnfgr_rltns) != 0):  # assign random if still None
-            print("random name")
-            best_name = cnfgr_rltns[random.randint(0, len(cnfgr_rltns)-1)][0]
-            print("best random name: ", best_name)
 
         new_object.name = best_name
         return best_name
