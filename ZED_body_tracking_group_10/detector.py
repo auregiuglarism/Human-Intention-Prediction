@@ -43,6 +43,7 @@ class ZedObjectDetection:
         self.holding = False
         self.prevHolding = False
         self.plcdObjs = []
+        self.latest_id = -1
 
         # Delay variables
         self.five_maps = []  # map in this case corresponds to object list with coordinates
@@ -305,8 +306,8 @@ class ZedObjectDetection:
         print("Initializing All Parameters")
 
         skeleton_data = []
-        tmpSz = 0
 
+        tmpLen = 0
         while not exit_signal:
             if zed.grab(runtime_params) == sl.ERROR_CODE.SUCCESS:
                 # -- Get skeleton and serialize it
@@ -346,9 +347,10 @@ class ZedObjectDetection:
                 print("Length of skeleton data: ", len(skeleton_data[-1]['body_list']))
                 # print("Length of object list ", len(objects.object_list))
 
-                if (tmpSz < len(objects.object_list)):
+
+                if tmpLen < len(objects.object_list):
                     print()
-                tmpSz = len(objects.object_list)
+                tmpLen = len(objects.object_list)
 
                 knnLabels = self.getLabelsKNN(objects.object_list)  # able to track the label of slowly moving object
                 # But the not moving objects have slightly changing
@@ -489,12 +491,14 @@ class ZedObjectDetection:
             self.flicker_list = self.flicker_list[1:]
         self.delayed_holding = mode(self.flicker_list)
 
-    def getLabelsKNN(self, object_list, neighs=3, rad = 0.1):
+    # rad based on distance calculation between observed objects
+    def getLabelsKNN(self, object_list, neighs=3, rad = 0.2):
         if len(object_list) == 0: return []
 
         labels = []
         if len(self.five_maps) == 0:
             labels = list(range(len(object_list)))
+            self.latest_id = len(labels)-1
         else:
             crdLst = []
             labelLst = []
@@ -518,7 +522,8 @@ class ZedObjectDetection:
                 if len(obj_lbls) >0:
                     labels.append(mode(obj_lbls))
                 else:
-                    labels.append(len(object_list)-1)  # assumption of new objects being at the end of the object list
+                    self.latest_id+=1
+                    labels.append(self.latest_id)  # assumption of new objects being at the end of the object list
         return labels
 
     def updateKNN(self, knnLabels, object_list):
