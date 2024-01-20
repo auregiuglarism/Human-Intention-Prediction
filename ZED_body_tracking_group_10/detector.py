@@ -51,6 +51,11 @@ class ZedObjectDetection:
         self.fifteen_dist = []  # list of 15 distances contains lists of objects with their left and right distances
         self.latest_id = -1
 
+    def increase_worker_counter(self, current_node, prev_node):
+        self.config.increase_worker_counter(current_node, prev_node)
+
+    def update_save_worker(self):
+        self.config.update_save_worker()
 
     # converts xywh format (used by YOLO) to abcd format (used by ZED SDK)
     def xywh_to_abcd(self, xywh, im_shape):
@@ -303,6 +308,9 @@ class ZedObjectDetection:
                         for obj in self.plcdObjs:
                             new_name = obj.name + "_" + new_name
                         name = obj_name + "_" + new_name
+                        # append this configuration counter for the worker using current node(@name)
+                        # and prev node(@self.node_name)
+                        self.increase_worker_counter(name, self.node_name)
                         self.plcdObjs.append(newObj)
                         # print("obj_name ", obj_name)
 
@@ -340,6 +348,7 @@ class ZedObjectDetection:
                 exit_signal = True
 
         exit_signal = True
+        self.update_save_worker()
         zed.close()
 
     def get_close_object(self, object_list, skeleton, threshold=0.28):

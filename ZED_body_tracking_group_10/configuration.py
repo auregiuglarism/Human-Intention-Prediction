@@ -1,17 +1,69 @@
 import itertools
 import json
 import os
+import pickle
 from pathlib import Path
 
 import networkx as nx
 import matplotlib.pyplot as plt
-from probability_graph.worker_probs import worker_dir
+from probability_graph.worker_probs import worker_dir, WorkerProbs
 
 
 class Configuration:
     def __init__(self):
         self.G = None
+        self.worker_id = None
+        self.worker_data = None
         self.worker_dir = worker_dir + "/worker_"
+
+    def increase_worker_counter(self, current_node, prev_node):
+        worker_counter = self.worker_data['counter']
+        # get correct node name
+        current_node = self.get_corr_node(current_node)
+        prev_node = self.get_corr_node(prev_node)
+        if current_node is not None and prev_node is not None:
+            key = (prev_node, current_node)
+            # checking if (prev_node, curr_node) exists in worker_counter
+            if key in worker_counter:
+                worker_counter[key] +=1
+            else:
+                worker_counter[key] = 1
+            self.worker_data['counter'] = worker_counter
+
+    def get_corr_node(self, node):
+        for n in self.G.nodes:
+            if self.checkEq_baseline(node, n):
+                return n
+        return None
+
+    def update_save_worker(self):
+        self.update_weights()
+        worker_saver = WorkerProbs(self.worker_data['probs'], self.worker_data['counter'])
+        worker_saver.save_pickle(self.worker_id)
+
+    def count_freq_per_node(self):
+        out_edges = {}
+        # counting how many out_edges does each node have
+        for key, value in self.worker_data['counter'].items():
+            init_node = key[0]
+            if init_node not in out_edges:
+                # init out_edge with count and then the future sum of all freqs
+                # for each node with outgoing edge
+                out_edges[init_node] = value
+            else:
+                # increase the overall freq
+                out_edges[init_node][1] += value
+        return out_edges
+
+    def update_weights(self):
+        new_probs = {}
+        ## TODO: implement splitting if you have same item, different id
+        # get sum of freqs of out_edges per node
+        out_edges_freq = self.count_freq_per_node()
+        # assign probability to each used node by the worker
+        for key, value in self.worker_data['counter'].items():
+            new_probs[key] = round(value / out_edges_freq[key], 3)
+        self.worker_data['probs'] = new_probs
 
     def initGraph(self, input):
         G = nx.DiGraph()
@@ -92,15 +144,18 @@ class Configuration:
         and then assigns all other values to be the same 
         if we do not have information about other edges.
     """
-    def assign_worker_probs(self, worker_id):
+    def load_assign_worker(self, worker_id):
         if worker_id is not None:
             worker_file = Path(self.worker_dir + str(worker_id) + ".json")
             if worker_file.is_file():
-                worker_probs = json.load(worker_file.open())
+                self.worker_id = worker_id
+                with open(worker_file, 'rb') as pickle_file:
+                    worker_probs = pickle.load(pickle_file)
+                self.worker_data = worker_probs
+                worker_probs = worker_probs["probs"]
                 G = self.G
-                for used_node, edges in worker_probs.items():
-                    for edge in edges:
-                        G[used_node][edge[0]]["weight"] = edge[1]
+                for edge, prob in worker_probs.items():
+                    G[edge[0]][edge[1]]["weight"] = prob
         self.assign_probs()
 
     def get_graph(self):
@@ -108,7 +163,7 @@ class Configuration:
 
     def hasNode(self, newName):
         for n in self.G.nodes:
-            if (self.checkEq_baseline(newName, n)): return True
+            if self.checkEq_baseline(newName, n): return True
         return False
 
 

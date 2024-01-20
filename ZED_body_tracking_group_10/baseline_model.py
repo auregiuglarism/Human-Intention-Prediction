@@ -213,11 +213,7 @@ class BaselineModel:
             return predic
 
     def predict(self, node):
-
-        for n in self.G.nodes:
-            if (self.checkEq(n, node)):
-                node = n
-                break
+        self.configuration.get_corr_node(node)
         out_edges = self.G.out_edges([node])
 
         if len(out_edges) > 1:
