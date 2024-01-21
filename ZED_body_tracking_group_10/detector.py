@@ -36,6 +36,10 @@ class ZedObjectDetection:
         self.delayed_holding = True
         self.flicker_list = []
         self.config = config
+        if worker_id is None:
+            self.config.set_new_id()
+        else:
+            self.config.set_id()
         self.baseline = baseline
         self.node_name = "root"
         self.frame_size_set = False

@@ -16,6 +16,12 @@ class Configuration:
         self.worker_data = None
         self.worker_dir = worker_dir + "/worker_"
 
+    def set_id(self, id):
+        self.worker_id = id
+
+    def set_new_id(self):
+        self.worker_id = str(len(os.listdir(worker_dir)) + 1)
+
     def increase_worker_counter(self, current_node, prev_node):
         worker_counter = self.worker_data['counter']
         # get correct node name
