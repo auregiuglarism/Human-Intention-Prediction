@@ -510,19 +510,20 @@ class ZedObjectDetection:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', type=str, default='Models/best.pt', help='model.pt path(s)')
-    parser.add_argument('--svo', type=str, default=None, help='optional svo file')
+    parser.add_argument('--weights', type=str, default='Models/best2.pt', help='model.pt path(s)')
+    parser.add_argument('--svo', type=str, default='/home/kamil/PycharmProjects/Project3-1_WORKING_ZED/ZED_body_tracking_group_10/exp1_slow2.svo', help='optional svo file')
     parser.add_argument('--img_size', type=int, default=1242, help='inference size (pixels)')
-    parser.add_argument('--conf_thres', type=float, default=0.5, help='object confidence threshold')
+    parser.add_argument('--conf_thres', type=float, default=0.6, help='object confidence threshold')
     parser.add_argument('--iou_thres', type=float, default=0.5, help='iou threshold')
     opt = parser.parse_args()
 
     # graph = [("Cup", (0), ("-1", "-1", "Crate0", "-1")),
     #          ("Crate", (0), ("Cup0", "-1", "Cup1", "-1")),
     #          ("Cup", (1), ("Crate0", "-1", "-1", "-1"))]
-    graph = [("Cup", (0), ("-1", "Feeder0", "-1", "-1")),
-             ("Feeder", (0), ("-1", "-1", "-1", "Cup0")),
-             ("Cup", (1), ("Feeder0", "-1", "-1", "-1"))]
+    graph = [("Crate", (0), ("-1", "-1", "Feeder0", "-1")),
+             ("Crate", (1), ("Feeder0", "-1", "-1", "-1")),
+             ("Feeder", (0), ("Crate0", "Cup0", "Crate1", "-1")),
+             ("Cup", (0), ("-1", "-1", "-1", "Cup0"))]
     config = configuration.Configuration()
     config.initGraph(graph)
     config.assign_probs()

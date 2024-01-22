@@ -39,7 +39,12 @@ signal(SIGINT, handler)
 
 def main():
     init = sl.InitParameters()
-    init.depth_mode = sl.DEPTH_MODE.ULTRA  # Set configuration parameters for the ZED
+    init.coordinate_units = sl.UNIT.METER
+    init.camera_resolution = sl.RESOLUTION.HD2K  # HD720 for extra wide FOV
+    init.camera_fps = 15  # 15 fps for better depth quality under low light
+    init.depth_mode = sl.DEPTH_MODE.ULTRA  # depth quality
+    init.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
+    init.depth_maximum_distance = 2  # distance in coordinate_units (should be 10 meters)
 
     status = cam.open(init)
     if status != sl.ERROR_CODE.SUCCESS:
