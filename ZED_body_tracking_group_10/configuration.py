@@ -3,6 +3,7 @@ import json
 import os
 import pickle
 from pathlib import Path
+from time import sleep
 
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -13,7 +14,7 @@ class Configuration:
     def __init__(self):
         self.G = None
         self.worker_id = None
-        self.worker_data = None
+        self.worker_data = {"probs": {}, "counter": {}}
         self.worker_dir = worker_dir + "/worker_"
 
     def set_id(self, id):
@@ -23,6 +24,7 @@ class Configuration:
         self.worker_id = str(len(os.listdir(worker_dir)) + 1)
 
     def increase_worker_counter(self, current_node, prev_node):
+
         worker_counter = self.worker_data['counter']
         # get correct node name
         current_node = self.get_corr_node(current_node)
@@ -34,7 +36,9 @@ class Configuration:
                 worker_counter[key] +=1
             else:
                 worker_counter[key] = 1
+            print('Worker counter', worker_counter)
             self.worker_data['counter'] = worker_counter
+            sleep(3)
 
     def get_corr_node(self, node):
         for n in self.G.nodes:
@@ -150,7 +154,8 @@ class Configuration:
         and then assigns all other values to be the same 
         if we do not have information about other edges.
     """
-    def load_assign_worker(self, worker_id):
+    def load_assign_worker(self):
+        worker_id = self.worker_id
         if worker_id is not None:
             worker_file = Path(self.worker_dir + str(worker_id) + ".json")
             if worker_file.is_file():

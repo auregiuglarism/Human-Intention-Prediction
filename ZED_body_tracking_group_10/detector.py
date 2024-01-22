@@ -28,7 +28,7 @@ exit_signal = False
 
 
 class ZedObjectDetection:
-    def __init__(self, config, baseline):
+    def __init__(self, config, baseline, worker_id = None):
         # self.body_runtime_param = None
         # self.bodies = None
         # self.runtime_params = None
@@ -40,6 +40,7 @@ class ZedObjectDetection:
             self.config.set_new_id()
         else:
             self.config.set_id()
+        self.config.load_assign_worker()
         self.baseline = baseline
         self.node_name = "root"
         self.frame_size_set = False
@@ -56,6 +57,7 @@ class ZedObjectDetection:
         self.latest_id = -1
 
     def increase_worker_counter(self, current_node, prev_node):
+        print("Increasing counter for ", current_node , prev_node)
         self.config.increase_worker_counter(current_node, prev_node)
 
     def update_save_worker(self):
