@@ -33,12 +33,12 @@ class Configuration:
             key = (prev_node, current_node)
             # checking if (prev_node, curr_node) exists in worker_counter
             if key in worker_counter:
-                worker_counter[key] +=1
+                worker_counter[key] += 1
             else:
                 worker_counter[key] = 1
             print('Worker counter', worker_counter)
             self.worker_data['counter'] = worker_counter
-            sleep(3)
+            #sleep(3)
 
     def get_corr_node(self, node):
         for n in self.G.nodes:
@@ -66,14 +66,15 @@ class Configuration:
         return out_edges
 
     def update_weights(self):
-        new_probs = {}
-        ## TODO: implement splitting if you have same item, different id
-        # get sum of freqs of out_edges per node
-        out_edges_freq = self.count_freq_per_node()
-        # assign probability to each used node by the worker
-        for key, value in self.worker_data['counter'].items():
-            new_probs[key] = round(value / out_edges_freq[key], 3)
-        self.worker_data['probs'] = new_probs
+        if len(self.worker_data["counter"]) > 0:
+            new_probs = {}
+            ## TODO: implement splitting if you have same item, different id
+            # get sum of freqs of out_edges per node
+            out_edges_freq = self.count_freq_per_node()
+            # assign probability to each used node by the worker
+            for key, value in self.worker_data['counter'].items():
+                new_probs[key] = round(value / out_edges_freq[key], 3)
+            self.worker_data['probs'] = new_probs
 
     def initGraph(self, input):
         G = nx.DiGraph()
@@ -142,11 +143,10 @@ class Configuration:
         for node in G.nodes:
             edges = G.out_edges([node])
             edge_num, prob_sum = self.get_non_pop_edges(edges)
-            for u,v in edges:
+            for u, v in edges:
                 edge_data = G.get_edge_data(u, v)
                 if edge_data["weight"] == 0:
                     G[u][v]["weight"] = round(prob_sum / edge_num, 3)
-
 
     """
         input - worker_id 
@@ -154,6 +154,7 @@ class Configuration:
         and then assigns all other values to be the same 
         if we do not have information about other edges.
     """
+
     def load_assign_worker(self):
         worker_id = self.worker_id
         if worker_id is not None:
