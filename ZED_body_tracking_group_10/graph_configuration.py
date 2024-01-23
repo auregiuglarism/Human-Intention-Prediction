@@ -45,7 +45,7 @@ class Configuration:
                 worker_counter[key] = 1
             print('Worker counter', worker_counter)
             self.worker_data['counter'] = worker_counter
-            #sleep(3)
+            # sleep(2)
 
     def get_corr_node(self, node):
         """
@@ -79,7 +79,7 @@ class Configuration:
                 out_edges[init_node] = value
             else:
                 # increase the overall freq
-                out_edges[init_node][1] += value
+                out_edges[init_node] += value
         return out_edges
 
     def get_root_obj(self):
@@ -229,7 +229,7 @@ class Configuration:
         """
         worker_id = self.worker_id
         if worker_id is not None:
-            worker_file = Path(self.worker_dir + str(worker_id) + ".json")
+            worker_file = Path(self.worker_dir + str(worker_id) + ".pkl")
             if worker_file.is_file():
                 self.worker_id = worker_id
                 with open(worker_file, 'rb') as pickle_file:
@@ -251,12 +251,14 @@ class Configuration:
 
 
 if __name__ == "__main__":
-    configuration = [("Cup", (0), ("-1", "-1", "Crate0", "-1")),
-                     ("Crate", (0), ("Cup0", "-1", "Cup1", "-1")),
-                     ("Cup", (1), ("Crate0", "-1", "-1", "-1"))]
+    configuration = [("Cup", (0), ("-1", "Feeder0", "-1", "-1")),
+             ("Cup", (1), ("Feeder0", "-1", "-1", "-1")),
+             ("Crate", (0), ("-1", "-1", "Feeder0", "-1")),
+             ("Feeder", (0), ("Crate0", "-1", "Cup1", "Cup0"))]
 
     graph = Configuration()
     graph.initGraph(configuration)
+    graph.set_id(1)
     # Draw the graph with edge labels
     pos = nx.spring_layout(graph.get_graph(), scale=3)
 

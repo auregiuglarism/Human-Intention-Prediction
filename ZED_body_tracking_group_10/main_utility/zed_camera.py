@@ -42,6 +42,7 @@ class ZedCamera:
         init_params.depth_mode = sl.DEPTH_MODE.ULTRA  # depth quality
         init_params.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
         init_params.depth_maximum_distance = 10  # distance in coordinate_units (should be 10 meters)
+        init_params.set_from_svo_file("/home/kamil/PycharmProjects/Project3-1_WORKING_ZED/ZED_body_tracking_group_10/assembly_Dom_fecu1cu0cr.svo")
 
         self.runtime_params = sl.RuntimeParameters()
         status = self.zed.open(init_params)

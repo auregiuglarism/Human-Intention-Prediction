@@ -39,9 +39,9 @@ def append_to_dict(existing_dict, new_items):
 #     pickle.dump(dict2, pickle_file)
 #
 # To load the pickle file back into a dictionary
-with open("/home/kamil/PycharmProjects/Project3-1_WORKING_ZED/ZED_body_tracking_group_10/Worker_Profiling/Profiles/worker_3.pkl", 'rb') as pickle_file:
+with open("/home/kamil/PycharmProjects/Project3-1_WORKING_ZED/ZED_body_tracking_group_10/Worker_Profiling/Profiles/worker_1.pkl", 'rb') as pickle_file:
     loaded_dict = pickle.load(pickle_file)
-print(loaded_dict)
+print(loaded_dict["probs"])
 #
 # for key,values in dict2.items():
 #     print(key)

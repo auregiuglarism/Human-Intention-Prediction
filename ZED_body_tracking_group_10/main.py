@@ -38,7 +38,7 @@ class ZedObjectDetection:
         if worker_id is None:
             self.config.set_new_id()
         else:
-            self.config.set_id()
+            self.config.set_id(worker_id)
         self.config.load_assign_worker()
 
         # BASELINE
@@ -108,7 +108,11 @@ class ZedObjectDetection:
     def make_node_name(self,obj_name):
         new_name = "root"
         for obj in self.plcdObjs:
-            new_name = obj.name + "_" + new_name
+            used_node = new_name.split("_")
+            if obj.name in used_node:
+                new_name = obj.name[:-1] + str(int(obj.name[-1])+1) + "_" + new_name
+            else:
+                new_name = obj.name + "_" + new_name
         return new_name
 
     def main(self):
@@ -170,7 +174,7 @@ class ZedObjectDetection:
                         # getting the class name from @self.map_raw_to_label
                         # and the object position
                         new_obj = Object(self.map_raw_to_label[str(object[1])], object[2].tolist())
-
+                        print('newobj: ', new_obj.type)
                         # compute where the object is relative to other objects in the frame
                         # outputs the name, based on its location
                         obj_name = self.baseline.compute_quadrant(new_obj, self.plcdObjs, self.baseline.known_objects)
@@ -190,14 +194,15 @@ class ZedObjectDetection:
                             # make prediction
                             pred = self.baseline.yolo_predict(name)
                             print("Prediction ", pred)
-                            sleep(2)
+                            sleep(1)
 
                             # if the graph doesn't have any more nodes to predict end the program
                             if len(self.plcdObjs) == len(self.baseline.known_objects):
                                 exit_signal = True
                         else:
                             print("Wrong placement")
-                            sleep(2)
+                            print(name)
+                            sleep(1)
                     self.prevHolding = self.delayed_holding
 
                 # Rendering the objects on screen
@@ -247,7 +252,7 @@ class ZedObjectDetection:
             return prob_object
         return None
 
-    def get_avg_dists(self, threshold=0.32):
+    def get_avg_dists(self, threshold=0.3):
         """
             the function calculates the average distance based on 15 frames
 
@@ -373,28 +378,25 @@ class ZedObjectDetection:
     def updateFifteenDst(self, frm_dists):
         if len(frm_dists) != 0:
             self.fifteen_dist.append(frm_dists)
-        if len(self.fifteen_dist) > 7:
+        if len(self.fifteen_dist) > 8:
             self.fifteen_dist = self.fifteen_dist[1:]
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', type=str, default='Yolo_Models/new_best.pt', help='model.pt path(s)')
-    parser.add_argument('--svo', type=str, default=None, help='optional svo file')
+    parser.add_argument('--svo', type=str, default='/home/kamil/PycharmProjects/Project3-1_WORKING_ZED/ZED_body_tracking_group_10/assembly1.svo', help='optional svo file')
     parser.add_argument('--conf_thres', type=float, default=0.5, help='object confidence threshold')
     parser.add_argument('--iou_thres', type=float, default=0.5, help='iou threshold')
     parser.add_argument('--worker_id', type=int, default= None, help= 'worker_id')
     opt = parser.parse_args()
 
-    graph = [("Cup", (0), ("-1", "-1", "Crate0", "-1")),
-             ("Crate", (0), ("Cup0", "-1", "Cup1", "-1")),
-             ("Cup", (1), ("Crate0", "-1", "-1", "-1"))]
-    # graph = [("Cup", (0), ("-1", "Feeder0", "-1", "-1")),
-    #          ("Feeder", (0), ("-1", "-1", "-1", "Cup0")),
-    #          ("Cup", (1), ("Feeder0", "-1", "-1", "-1"))]
+    graph = [("Cup", (0), ("-1", "Feeder0", "-1", "-1")),
+             ("Cup", (1), ("Feeder0", "-1", "-1", "-1")),
+             ("Crate", (0), ("-1", "-1", "Feeder0", "-1")),
+             ("Feeder", (0), ("Crate0", "-1", "Cup1", "Cup0"))]
     config = graph_configuration.Configuration()
     config.initGraph(graph)
-    config.assign_probs()
 
     baseline_model = baseline_model.BaselineModel(config, config.get_graph(), graph)
 

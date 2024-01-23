@@ -1,6 +1,9 @@
 import json
 import random
+
+import networkx as nx
 import numpy as np
+from matplotlib import pyplot as plt
 from sklearn.neighbors import NearestNeighbors
 
 from ZED_body_tracking_group_10.graph_configuration import Configuration
@@ -44,7 +47,7 @@ class BaselineModel:
             obj_y = ex_object.pos[1] - center_y
             if abs(obj_x)< self.thresholdx and abs(obj_y) < self.thresholdy:
                 return ex_object.name
-            current_dist = nn_distances[0][cntr]
+            current_dist = nn_distances[cntr]
 
             # right object
             if abs(obj_x) > abs(obj_y) and obj_x > 0 and (current_dist < dist_neighbor[2]):
@@ -120,7 +123,7 @@ class BaselineModel:
         """
         cnfgr_rltns = []
         for tup in configr:  # determine objects of the same type
-            if (tup[0] == new_object.type):
+            if tup[0] == new_object.type:
                 cnfgr_rltns.append((tup[0] + str(tup[1]), tup[2]))
 
         best_match = 0
@@ -146,12 +149,14 @@ class BaselineModel:
         if len(crdLst) < neighbrhd:
             neighbrhd = len(crdLst)
         if neighbrhd > 0:
-            nbrs = NearestNeighbors(n_neighbors=neighbrhd, algorithm='ball_tree').fit(crdLst)
-            nbrs_idx = nbrs.kneighbors([newObjPos], return_distance=True)
+            nbrs = NearestNeighbors(n_neighbors=neighbrhd, algorithm='ball_tree', radius= 0.3).fit(crdLst)
+            dist, nbrs_idx = nbrs.radius_neighbors([newObjPos], return_distance=True)
+            dist, nbrs_idx = zip(*sorted(zip(dist, nbrs_idx)))
+            nbrs_idx = nbrs_idx[0][:neighbrhd]
             nn_objs = []
-            for idx in nbrs_idx[1][0]:
+            for idx in nbrs_idx:
                 nn_objs.append(objLst[idx])
-            return nn_objs, nbrs_idx[0]
+            return nn_objs, nbrs_idx
         else:
             return [], []
 
@@ -209,7 +214,7 @@ class BaselineModel:
             prediction is made by getting all the outgoing edges of the node
             and then picking the most probable one
         """
-        self.configuration.get_corr_node(node)
+        node = self.configuration.get_corr_node(node)
         out_edges = self.G.out_edges([node])
 
         if len(out_edges) > 1:
@@ -229,21 +234,36 @@ class BaselineModel:
         for edge in out_edges:
             out_edge_probs.append(self.G.get_edge_data(edge[0], edge[1])['weight'])
 
+        # edge_choice = random.choices
         edge_choice = random.choices(out_edges, weights=out_edge_probs, k=1)
         return edge_choice[0][1]
 
 
 if __name__ == "__main__":
-    configuration = [("Cup", (0, 0, 0), (1, 1)),
-                     ("Crate", (1, 1, 1), (3, 3)),
-                     ("Feeder", (2, 2, 2), (8, 8)),
-                     ("Gold", (0, 0, 0), (1, 1))]
+    configuration = [("Cup", (0), ("-1", "Feeder0", "-1", "-1")),
+             ("Cup", (1), ("Feeder0", "-1", "-1", "-1")),
+             ("Crate", (0), ("-1", "-1", "Feeder0", "-1")),
+             ("Feeder", (0), ("Crate0", "-1", "Cup1", "Cup0"))]
     graph = Configuration()
     graph.initGraph(configuration)
-    graph.assign_probs()
+    graph.set_id(1)
+    graph.load_assign_worker()
 
-    baseline_model = BaselineModel(graph.get_graph(), configuration)
-    # print(baseline_model.predict("Cup000_root"))
-    print(baseline_model.make_predictions(
-        ["root", "Crate111_root", "Gold000_Crate111_root", "Gold000_Crate111_Cup000_root",
-         "Gold000_Feeder222_Crate111_Cup000_root"]))
+    # Draw the graph with edge labels
+    pos = nx.spring_layout(graph.get_graph(), scale=3)
+
+    nx.draw(graph.get_graph(), pos, with_labels=True, font_size=10, font_color="black", font_weight="bold",
+            arrowsize=20)
+
+    # Add edge labels
+    labels = nx.get_edge_attributes(graph.get_graph(), 'weight')
+    nx.draw_networkx_edge_labels(graph.get_graph(), pos, edge_labels=labels)
+
+    plt.savefig("graph_vis.png")
+    plt.show()
+
+    # baseline_model = BaselineModel(graph.get_graph(), configuration)
+    # # print(baseline_model.predict("Cup000_root"))
+    # print(baseline_model.make_predictions(
+    #     ["root", "Crate111_root", "Gold000_Crate111_root", "Gold000_Crate111_Cup000_root",
+    #      "Gold000_Feeder222_Crate111_Cup000_root"]))

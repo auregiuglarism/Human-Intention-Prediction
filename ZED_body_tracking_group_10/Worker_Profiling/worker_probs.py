@@ -52,6 +52,25 @@ class WorkerProbs:
 
         return updated_dict
 
+    def append_counter(self, existing, new_items):
+        updated_dict = {}
+        # for each key in the existing dict
+        for key, value in existing.items():
+            # append existing_dict values to the list
+            # the key is tuple already
+            updated_dict[key] = value
+            # now check in the new_items have this key
+            if key in new_items:
+                updated_dict[key] += new_items[key]
+                # delete all appended values
+                del new_items[key]
+        # if there are keys that were not appended from new_items
+        # append them in to the list
+        for key, value in new_items.items():
+            updated_dict[key] = value
+
+        return updated_dict
+
     def save_pickle(self, worker_id=None):
         # if worker id was given
         if worker_id is not None:
@@ -62,7 +81,8 @@ class WorkerProbs:
                 # open the json file and update the values
                 with open(file_path, 'rb') as pickle_file:
                     pickle_data = pickle.load(pickle_file)
-                self.task_prob = self.append_to_dict(self.task_prob, pickle_data)
+                self.task_prob = self.append_to_dict(self.task_prob, pickle_data["probs"])
+                # self.task_counter = self.append_counter(self.task_counter, pickle_data["counter"])
         # no worker existing
         else:
             worker_id = str(len(os.listdir(worker_dir)) + 1)
