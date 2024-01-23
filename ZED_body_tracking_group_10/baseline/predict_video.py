@@ -6,8 +6,8 @@ from ultralytics import YOLO
 import math as Math
 import numpy as np
 
-from ZED_body_tracking_group_10.baseline_model import  BaselineModel
-from ZED_body_tracking_group_10.configuration import Configuration
+from ZED_body_tracking_group_10.baseline_model import BaselineModel
+from ZED_body_tracking_group_10.graph_configuration import Configuration
 
 
 class MultiModelDetector:
@@ -40,7 +40,6 @@ class MultiModelDetector:
         return result_list
 
     def compute_distance(self, bounding_box, skeleton):
-        ## TODO: IMPLEMENT FOR Z AXIS
         w0 = 1
         w1 = 1
 
@@ -117,14 +116,6 @@ class MultiModelDetector:
                             f"{self.models[results.index(best_result)].names[int(class_id)].upper()} {score:.2f}",
                             (int(x1), int(y1 - 10)), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3, cv2.LINE_AA)
 
-        ### TODO: WHICH OBJECT IS MOVING
-        ### PREDICT ONLY WHEN OBJECT STOPS MOVING
-
-        ### TODO: REMOVE THE POSSIBLITY OF USING THE SAME OBJECT
-
-
-
-
     def run(self, video_path, output_path):
         cap = cv2.VideoCapture(video_path)
         ret, frame = cap.read()
@@ -157,7 +148,7 @@ class MultiModelDetector:
 
     def run_baseline(self, name):
         split1 = set(name.split("_"))
-        if(len(split1) < len(self.known_objects)):
+        if (len(split1) < len(self.known_objects)):
             self.node_name = name
             predic = self.baseline_model.yolo_predict(name)
             print("PREDICTION " + predic)
@@ -166,8 +157,8 @@ class MultiModelDetector:
 
 if __name__ == '__main__':
     objects = [("Cup0", "N"),
-                     ("Crate0", "NW"),
-                     ("Feeder0", "S")]
+               ("Crate0", "NW"),
+               ("Feeder0", "S")]
     configuration = objects
     graph = Configuration()
     graph.initGraph(configuration)
@@ -175,7 +166,7 @@ if __name__ == '__main__':
 
     baseline_model = BaselineModel(graph.get_graph())
 
-    model1 = YOLO('/Users/Vitalij/Desktop/Project3-1/Models/best.pt')
+    model1 = YOLO('/Users/Vitalij/Desktop/Project3-1/Yolo_Models/best.pt')
 
     video_path = '/Users/Vitalij/Desktop/Project3-1/baselines/baseline/angled.mp4'
     video_path_out = '{}_models{}_out.mp4'.format(video_path, '2_th0.3')

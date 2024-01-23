@@ -3,7 +3,7 @@ import random
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
 
-from ZED_body_tracking_group_10.configuration import Configuration
+from ZED_body_tracking_group_10.graph_configuration import Configuration
 import math as Math
 
 
@@ -16,36 +16,16 @@ class BaselineModel:
         self.frame_x = 0.0
         self.frame_y = 0.0
 
-    def load_data(self, path):
-        data = []
-        with open(path) as f:
-            json_data = json.load(f)
-            result_list = []
-
-            # Iterate through each timestamp
-            for timestamp, entry in json_data.items():
-                # Extract the "keypoint" information for the current timestamp
-                keypoints = entry.get("body_list", [])
-
-                # Iterate through each keypoint
-                for keypoint in keypoints:
-                    # Extract the coordinates (x, y, z) for the current keypoint
-                    coordinates = keypoint.get("keypoint", [])
-
-                    # Append the coordinates to the result list
-                    result_list.append(coordinates)
-        return result_list
-
-    """
-        closest_object is a list of object class that has the id, name, relations to other objects
-        object class has:
-            - name
-            - id
-            - relation
-            - coordinates from zed
-    """
-
     def compute_quadrant(self, new_object, objLst, configr):
+        """
+            The method computes the relative positions to the object considering the position of all close objects
+            closest_object is a list of object class that has the id, name, relations to other objects
+            object class has:
+                - name
+                - id
+                - relation
+                - coordinates from zed
+        """
         center_x = new_object.pos[0]
         center_y = new_object.pos[1]
 
@@ -63,7 +43,6 @@ class BaselineModel:
 
             current_dist = nn_distances[0][cntr]
 
-
             # right object
             if abs(obj_x) > abs(obj_y) and obj_x > 0 and (current_dist < dist_neighbor[2]):
                 relative_position[2] = ex_object.name
@@ -76,29 +55,30 @@ class BaselineModel:
                 ex_object.relations[2] = new_object.name
                 dist_neighbor[0] = current_dist
                 changedObjects.append(ex_object)
-                # front object
+            # front object
             if abs(obj_x) < abs(obj_y) and obj_y > 0 and (current_dist < dist_neighbor[1]):
                 relative_position[1] = ex_object.name
                 ex_object.relations[3] = new_object.name
                 dist_neighbor[1] = current_dist
                 changedObjects.append(ex_object)
-                # back object
+            # back object
             if abs(obj_x) < abs(obj_y) and obj_y < 0 and (current_dist < dist_neighbor[3]):
                 relative_position[3] = ex_object.name
                 ex_object.relations[1] = new_object.name
                 dist_neighbor[3] = current_dist
                 changedObjects.append(ex_object)
 
-            cntr+=1
-
+            cntr += 1
+        # sets new relations of the object
         new_object.set_new_relation(relative_position)
+        # gets the object name knowing the relations
         name = self.determineName(new_object, configr)
+        # for each object substitute "Name" for the newly acquired object name
         for chgd_obj in changedObjects:
             relations = chgd_obj.relations
             for relation in range(len(relations)):
                 if relations[relation] == "Name":
                     relations[relation] = name
-
         self.updateNames(objLst, configr)
 
         return name
@@ -109,42 +89,43 @@ class BaselineModel:
     #
     # Output:
     # returns indices of nearest neighbours (ordered in terms of increasing distance i.e. at index 0 it will be closest)
-
     def updateNames(self, objLst, configr):
         for obj in objLst:
             obj.name = self.determineName(obj, configr)
 
     def determineName(self, new_object, configr):
+        """
+            knowing each objects relations and the configuration of the graph
+            we now can determine the true naming for the object and its id
+        """
         cnfgr_rltns = []
         for tup in configr:  # determine objects of the same type
             if (tup[0] == new_object.type):
-                cnfgr_rltns.append((tup[0]+str(tup[1]), tup[2]))
+                cnfgr_rltns.append((tup[0] + str(tup[1]), tup[2]))
 
         best_match = 0
         best_name = "None"
         for tup in cnfgr_rltns:
             match = 0
             for i in range(len(tup[1])):
-                if (tup[1][i]==new_object.relations[i]):
-                    match+=1
+                if tup[1][i] == new_object.relations[i]:
+                    match += 1
 
-            if (match > best_match):
+            if match > best_match:
                 best_name = tup[0]
                 best_match = match
-
 
         new_object.name = best_name
         return best_name
 
     def findNN(self, newObjPos, objLst, neighbrhd=8):
-
         crdLst = []
         for obj in objLst:
             crdLst.append(obj.pos)
 
-        if (len(crdLst) < neighbrhd):
+        if len(crdLst) < neighbrhd:
             neighbrhd = len(crdLst)
-        if neighbrhd>0:
+        if neighbrhd > 0:
             nbrs = NearestNeighbors(n_neighbors=neighbrhd, algorithm='ball_tree').fit(crdLst)
             nbrs_idx = nbrs.kneighbors([newObjPos], return_distance=True)
             nn_objs = []
@@ -153,45 +134,33 @@ class BaselineModel:
             return nn_objs, nbrs_idx[0]
         else:
             return [], []
-    def euclidean_distance(self,x1, y1, z1, x2, y2, z2):
+
+    def euclidean_distance(self, x1, y1, z1, x2, y2, z2):
         return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2 + (z2 - z1) ** 2)
 
-    def checkEq(self, nd1, nd2):
-        splt1 = set(nd1.split("_"))
-        splt2 = set(nd2.split("_"))
-
-        return (nd1 != nd2) and (splt1 == splt2)
-
     def compute_distance(self, bounding_box, skeleton):
-        ## TODO: IMPLEMENT FOR Z AXIS
-
         # Bounding box needs to be in the form of a 4x2 array, output of xywh_to_abcd.
         center_object = np.array(bounding_box)
 
-        # Skeleton needs to be an array of 34 keypoints
-        # Normalize Chest X
-        left_hand = np.array([skeleton[7][0], skeleton[7][1], skeleton[7][2]])  # chest_x subtrction
+        # Normalize using Chest X position
+        left_hand = np.array([skeleton[7][0], skeleton[7][1], skeleton[7][2]])
         right_hand = np.array([skeleton[4][0], skeleton[4][1], skeleton[4][2]])
-        # print("Left {}\n Right {}".format(left_hand, right_hand))
-        # print("Objects: ", center_object)
 
-        # Compute distance
+        # Compute distance for each hand
         object_lefthand = self.euclidean_distance(left_hand[0], left_hand[1], left_hand[2], center_object[0],
                                                   center_object[1], center_object[2])
         object_righthand = self.euclidean_distance(right_hand[0], right_hand[1], right_hand[2], center_object[0],
                                                    center_object[1], center_object[2])
-
-        # avg_distance = (object_lefthand + object_righthand) / 2.0
-        # print('Dstance:', avg_distance)
-        # print('rhs: ', object_righthand)
-        # print('lhs: ', object_lefthand)
-        # print()
 
         return object_righthand, object_lefthand
 
     # Euclidean distance between two points in 2D space
 
     def make_predictions(self, nodes):
+        """
+            This is an experimental setup to check whether the random model
+            behaves as intended and all the node namings and order match
+        """
         previous_node = nodes[0]
         hit_count = 0
         for current_node in nodes[1:]:
@@ -200,19 +169,26 @@ class BaselineModel:
             print("Predicted node", predicted_node)
             print()
 
-            if self.checkEq(current_node, predicted_node):
+            if self.configuration.checkEq(current_node, predicted_node):
                 hit_count += 1
             previous_node = current_node
         return hit_count / (len(nodes) - 1)
 
     def yolo_predict(self, node):
+        """
+            For yolo we check whether we reached the limit for predicting next action
+        """
         split1 = set(node.split("_"))
-        if (len(split1) <= len(self.known_objects)):
+        if len(split1) <= len(self.known_objects):
             self.yolo_node = node
             predic = self.predict(node)
             return predic
 
     def predict(self, node):
+        """
+            prediction is made by getting all the outgoing edges of the node
+            and then picking the most probable one
+        """
         self.configuration.get_corr_node(node)
         out_edges = self.G.out_edges([node])
 
@@ -220,9 +196,14 @@ class BaselineModel:
             return self.perform_step(out_edges)
         if len(out_edges) == 0:
             return node
+        ## never reached
         return list(out_edges)[0][1]
 
     def perform_step(self, out_edges):
+        """
+            to perform a step get firstly get the list of probabilities
+            of performing the action and then make a weighted choice
+        """
         out_edge_probs = []
         out_edges = list(out_edges)
         for edge in out_edges:
@@ -243,4 +224,6 @@ if __name__ == "__main__":
 
     baseline_model = BaselineModel(graph.get_graph(), configuration)
     # print(baseline_model.predict("Cup000_root"))
-    print(baseline_model.make_predictions(["root", "Crate111_root", "Gold000_Crate111_root", "Gold000_Crate111_Cup000_root","Gold000_Feeder222_Crate111_Cup000_root"]))
+    print(baseline_model.make_predictions(
+        ["root", "Crate111_root", "Gold000_Crate111_root", "Gold000_Crate111_Cup000_root",
+         "Gold000_Feeder222_Crate111_Cup000_root"]))
