@@ -24,8 +24,8 @@
 """
 import cv2
 import pyzed.sl as sl
-import ZED_body_tracking_group_10.viewer as gl
-import tracking_viewer as cv_viewer
+import Zed_Data_Extraction.Utils.viewer as gl
+from Zed_Data_Extraction.Utils import tracking_viewer as cv_viewer
 import argparse
 
 

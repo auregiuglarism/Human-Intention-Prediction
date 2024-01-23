@@ -36,3 +36,10 @@ def draw_vertical_line(left_display, start_pt, end_pt, clr, thickness):
 
     cv2.line(left_display, (int(start_pt[0]), int(start_pt[1])), (int(pt1[0]), int(pt1[1])), clr, thickness)
     cv2.line(left_display, (int(pt4[0]), int(pt4[1])), (int(end_pt[0]), int(end_pt[1])), clr, thickness)
+
+def make_node_name(obj_name):
+    new_name = "root"
+    for obj in self.plcdObjs:
+        new_name = obj.name + "_" + new_name
+    name = obj_name + "_" + new_name
+    return name

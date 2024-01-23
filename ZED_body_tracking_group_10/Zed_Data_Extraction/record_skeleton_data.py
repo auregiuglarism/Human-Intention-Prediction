@@ -22,16 +22,11 @@
    This sample shows how to detect a human bodies and draw their
    modelised skeleton in an OpenGL window
 """
-import collections
-
-import cv2
-import sys
 import pyzed.sl as sl
-import time
-import ogl_viewer_skeleton.viewer as gl
+import Zed_Data_Extraction.Utils.skeleton_viewer as gl
 import numpy as np
 import json
-
+import matplotlib.pyplot as plt
 
 def addIntoOutput(out, identifier, tab):
     out[identifier] = []
@@ -40,22 +35,47 @@ def addIntoOutput(out, identifier, tab):
     return out
 
 
+counter =0
+list_velocity = []
 def serializeBodyData(body_data):
+    global counter, list_velocity
     """Serialize BodyData into a JSON like structure"""
     out = {}
     out["id"] = body_data.id
+    # out["unique_object_id"] = str(body_data.unique_object_id)
+    out["tracking_state"] = str(body_data.tracking_state)
+    out["action_state"] = str(body_data.action_state)
+
+    # if counter % 10==0:
+    list_velocity.append(body_data.velocity)
+    # counter+=1
     addIntoOutput(out, "position", body_data.position)
     addIntoOutput(out, "velocity", body_data.velocity)
-    addIntoOutput(out, "bounding_box", body_data.bounding_box)
-    addIntoOutput(out, "dimensions", body_data.dimensions)
+    addIntoOutput(out, "bounding_box_2d", body_data.bounding_box_2d)
+    # out["confidence"] = body_data.confidence
+    # addIntoOutput(out, "bounding_box", body_data.bounding_box)
+    # addIntoOutput(out, "dimensions", body_data.dimensions)
+    # addIntoOutput(out, "keypoint_2d", body_data.keypoint_2d)
     addIntoOutput(out, "keypoint", body_data.keypoint)
-    addIntoOutput(out, "local_position_per_joint", body_data.local_position_per_joint)
+    # addIntoOutput(out, "keypoint_cov", body_data.keypoints_covariance)
+    # addIntoOutput(out, "head_bounding_box_2d", body_data.head_bounding_box_2d)
+    # addIntoOutput(out, "head_bounding_box", body_data.head_bounding_box)
+    # addIntoOutput(out, "head_position", body_data.head_position)
+    # addIntoOutput(out, "keypoint_confidence", body_data.keypoint_confidence)
+    # addIntoOutput(out, "local_position_per_joint", body_data.local_position_per_joint)
+    # addIntoOutput(out, "local_orientation_per_joint", body_data.local_orientation_per_joint)
+    # addIntoOutput(out, "global_root_orientation", body_data.global_root_orientation)
+
+
+
     return out
 
 
 def serializeBodies(bodies):
     """Serialize Bodies objects into a JSON like structure"""
     out = {}
+    out["is_new"] = bodies.is_new
+    out["is_tracked"] = bodies.is_tracked
     out["timestamp"] = bodies.timestamp.data_ns
     out["body_list"] = []
     for sk in bodies.body_list:
@@ -89,8 +109,8 @@ if __name__ == "__main__":
 
     body_tracking_parameters = sl.BodyTrackingParameters()
     body_tracking_parameters.detection_model = sl.BODY_TRACKING_MODEL.HUMAN_BODY_ACCURATE
-    body_tracking_parameters.body_format = sl.BODY_FORMAT.BODY_18
-    body_tracking_parameters.enable_body_fitting = False
+    body_tracking_parameters.body_format = sl.BODY_FORMAT.BODY_34
+    body_tracking_parameters.enable_body_fitting = True
     body_tracking_parameters.enable_tracking = True
 
     error_code = zed.enable_body_tracking(body_tracking_parameters)
@@ -106,26 +126,20 @@ if __name__ == "__main__":
     bodies = sl.Bodies()
     # single_bodies = [sl.Bodies]
 
-    start_time = bodies.timestamp.get_milliseconds()
-
-    skeleton_data = {}
-    while viewer.is_available():
+    skeleton_file_data = []
+    while (viewer.is_available()):
         if zed.grab() == sl.ERROR_CODE.SUCCESS:
             zed.retrieve_bodies(bodies)
-            current_time = bodies.timestamp.get_milliseconds()
-            skeleton_data[current_time] = serializeBodies(bodies)
+            skeleton_file_data.append(serializeBodies(bodies))
             viewer.update_bodies(bodies)
 
-            ### Check if some time has passed to then get subarray
-            if current_time - start_time > 5000:
-                # to get the array do skeleton_data[current_time-5000:current_time]
-                ### PUT YOUR CODE ###
-                print()
 
-
+    plt.plot(list_velocity)
+    plt.legend(["x","y","z"])
+    plt.show()
     # Save data into JSON file:
-    # file_sk = open("bodies.json", 'w')
-    # file_sk.write(json.dumps(skeleton_file_data, cls=NumpyEncoder, indent=4))
-    # file_sk.close()
+    file_sk = open("crouching.json", 'w')
+    file_sk.write(json.dumps(skeleton_file_data, cls=NumpyEncoder, indent=4))
+    file_sk.close()
 
     viewer.exit()

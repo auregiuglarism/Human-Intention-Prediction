@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-from ZED_body_tracking_group_10.cv_viewer_detector.utils import *
+from ZED_body_tracking_group_10.main_utility.utils import *
 import pyzed.sl as sl
 import math
 from collections import deque
