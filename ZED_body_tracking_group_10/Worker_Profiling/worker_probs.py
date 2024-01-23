@@ -2,13 +2,13 @@ import os
 import pickle
 from pathlib import Path
 
-worker_dir = os.path.join(os.path.realpath(os.path.dirname(__file__)), "worker_probs")
+worker_dir = os.path.join(os.path.realpath(os.path.dirname(__file__)), "Profiles")
 
 
 class WorkerProbs:
     def __init__(self, task_prob =None, task_counter = None):
         self.json_file = "worker_"
-        self.worker_dir = "worker_probs"
+        self.worker_dir = "Profiles"
         if task_prob is None:
             self.task_prob = {}
         else:
@@ -21,16 +21,20 @@ class WorkerProbs:
     def clear_probs(self):
         self.task_prob = {}
 
-    # The method checks whether the input_value is already in the tuple list
     def check_value(self, input_value, tuple_list):
+        """
+            The method checks whether the input_value is already in the tuple list
+        """
         for tpl in tuple_list:
             if tpl[0] == input_value:
                 return True
         return False
 
-    # function to update the values, the existing values are prioritized, meaning that
-    # if new_items have the same node changed, it will keep the value from existing_dict
     def append_to_dict(self, existing_dict, new_items):
+        """
+            function to update the values, the existing values are prioritized, meaning that
+            if new_items have the same node changed, it will keep the value from existing_dict
+        """
         updated_dict = {}
         # for each key in the existing dict
         for key, value in existing_dict.items():
@@ -51,7 +55,7 @@ class WorkerProbs:
     def save_pickle(self, worker_id=None):
         # if worker id was given
         if worker_id is not None:
-            file_path = os.path.join(worker_dir, self.json_file + str(worker_id) + ".json")
+            file_path = os.path.join(worker_dir, self.json_file + str(worker_id) + ".pkl")
             worker_file = Path(file_path)
             # check if there already exists a worker file
             if worker_file.is_file():
@@ -62,7 +66,7 @@ class WorkerProbs:
         # no worker existing
         else:
             worker_id = str(len(os.listdir(worker_dir)) + 1)
-            file_path = os.path.join(worker_dir, self.json_file + worker_id + ".json")
+            file_path = os.path.join(worker_dir, self.json_file + worker_id + ".pkl")
 
         with open(file_path, 'wb') as pickle_file:
             # combining tasks probs and task counter in to one dict
