@@ -1,20 +1,18 @@
 import argparse
-import torch
-import cv2
-import pyzed.sl as sl
-from sklearn.neighbors import NearestNeighbors
-from ultralytics import YOLO
+import math
 from statistics import mode
-
 from threading import Lock, Thread
 from time import sleep
 
-import graph_configuration
-import ZED_body_tracking_group_10.main_utility as main_utility
-import baseline_model
-from Yolo_Objects.object import Object
-import math
+import cv2
+import pyzed.sl as sl
+import torch
+from sklearn.neighbors import NearestNeighbors
+from ultralytics import YOLO
 
+import baseline_model
+import graph_configuration
+from Yolo_Objects.object import Object
 from main_utility.zed_camera import ZedCamera
 
 lock = Lock()
@@ -111,8 +109,7 @@ class ZedObjectDetection:
         new_name = "root"
         for obj in self.plcdObjs:
             new_name = obj.name + "_" + new_name
-        name = obj_name + "_" + new_name
-        return name
+        return new_name
 
     def main(self):
         """

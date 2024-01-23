@@ -16,9 +16,7 @@
 ## ZED guidelines
 - Live_Feed.py:
     - Live output feed of the people and skeleton tracking on top
-- ZED_body_tracking_group_10/ogl_viewer/viewer.py:
-    - Only the skeleton tracking shown
-- ZED_body_tracking_group_10/Conver_2d_Recording .py:
+- Zed_Data_Extraction/convert_2d_recording .py:
     - Takes in recorded file. Saves it as jpg sequence (can use different types, but we decided to use sequence)
 - ZED_body_tracking_group_10/Record_Yolo.py:
     - creates svo file 

@@ -1,6 +1,6 @@
 import cv2
 
-from utils import *
+from Zed_Data_Extraction.Utils.utils import *
 import pyzed.sl as sl
 
 #----------------------------------------------------------------------

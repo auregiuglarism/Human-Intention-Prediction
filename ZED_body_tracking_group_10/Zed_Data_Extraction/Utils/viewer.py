@@ -2,7 +2,7 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
 from threading import Lock
-from utils import *
+from Zed_Data_Extraction.Utils.utils import *
 import numpy as np
 import sys
 import array
