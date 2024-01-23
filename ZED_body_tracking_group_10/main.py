@@ -10,7 +10,7 @@ from threading import Lock, Thread
 from time import sleep
 
 import graph_configuration
-import main_utility
+import ZED_body_tracking_group_10.main_utility as main_utility
 import baseline_model
 from Yolo_Objects.object import Object
 import math
@@ -102,10 +102,17 @@ class ZedObjectDetection:
                 det = results.cpu().numpy().boxes
 
                 # ZED CustomBox format (with inverse letterboxing tf applied)
-                detections = self.zed_camera.detections_to_custom_box(det, image_net, results.names)
+                detections = self.zed_camera.detections_to_custom_box(det, image_net, results.names, sl)
                 lock.release()
                 run_signal = False
             sleep(0.01)
+
+    def make_node_name(self,obj_name):
+        new_name = "root"
+        for obj in self.plcdObjs:
+            new_name = obj.name + "_" + new_name
+        name = obj_name + "_" + new_name
+        return name
 
     def main(self):
         """
@@ -141,11 +148,11 @@ class ZedObjectDetection:
                 # -- Ingest detections
                 self.zed_camera.zed.ingest_custom_box_objects(detections)
                 lock.release()
-                objects = self.zed_camera.retrieve_objects()
+                objects = self.zed_camera.get_object_data()
 
                 # -- Display
                 # Retrieve display data
-                self.zed_camera.retrieve_display_data()
+                self.zed_camera.retrieve_display_data(sl)
 
                 # Able to track the label of slowly moving object
                 # but not moving objects have slightly changing
@@ -172,29 +179,28 @@ class ZedObjectDetection:
                         obj_name = self.baseline.compute_quadrant(new_obj, self.plcdObjs, self.baseline.known_objects)
 
                         # get correct node name which corresponds to the graph
-                        name = main_utility.utils.make_node_name(obj_name)
-
-                        # append this configuration counter for the worker using current node(@name)
-                        # and prev node(@self.node_name)
-                        self.increase_worker_counter(name, self.node_name)
+                        name = self.make_node_name(obj_name)
 
                         # keep track of all placed objects in the frame
-                        self.plcdObjs.append(new_obj)
+                        # self.plcdObjs.append(new_obj)
                         # if the baseline has this node, then it will predict next node
                         if self.baseline.configuration.hasNode(name):
+                            # append this configuration counter for the worker using current node(@name)
+                            # and prev node(@self.node_name)
+                            self.increase_worker_counter(name, self.node_name)
                             # keep track of current node name
                             self.node_name = name
                             # make prediction
                             pred = self.baseline.yolo_predict(name)
                             print("Prediction ", pred)
-                            sleep(5)
+                            sleep(2)
 
                             # if the graph doesn't have any more nodes to predict end the program
                             if len(self.plcdObjs) == len(self.baseline.known_objects):
                                 exit_signal = True
                         else:
                             print("Wrong placement")
-                            sleep(5)
+                            sleep(2)
                     self.prevHolding = self.delayed_holding
 
                 # Rendering the objects on screen
@@ -376,19 +382,19 @@ class ZedObjectDetection:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', type=str, default='Yolo_Models/best.pt', help='model.pt path(s)')
+    parser.add_argument('--weights', type=str, default='Yolo_Models/new_best.pt', help='model.pt path(s)')
     parser.add_argument('--svo', type=str, default=None, help='optional svo file')
     parser.add_argument('--conf_thres', type=float, default=0.5, help='object confidence threshold')
     parser.add_argument('--iou_thres', type=float, default=0.5, help='iou threshold')
     parser.add_argument('--worker_id', type=int, default= None, help= 'worker_id')
     opt = parser.parse_args()
 
-    # graph = [("Cup", (0), ("-1", "-1", "Crate0", "-1")),
-    #          ("Crate", (0), ("Cup0", "-1", "Cup1", "-1")),
-    #          ("Cup", (1), ("Crate0", "-1", "-1", "-1"))]
-    graph = [("Cup", (0), ("-1", "Feeder0", "-1", "-1")),
-             ("Feeder", (0), ("-1", "-1", "-1", "Cup0")),
-             ("Cup", (1), ("Feeder0", "-1", "-1", "-1"))]
+    graph = [("Cup", (0), ("-1", "-1", "Crate0", "-1")),
+             ("Crate", (0), ("Cup0", "-1", "Cup1", "-1")),
+             ("Cup", (1), ("Crate0", "-1", "-1", "-1"))]
+    # graph = [("Cup", (0), ("-1", "Feeder0", "-1", "-1")),
+    #          ("Feeder", (0), ("-1", "-1", "-1", "Cup0")),
+    #          ("Cup", (1), ("Feeder0", "-1", "-1", "-1"))]
     config = graph_configuration.Configuration()
     config.initGraph(graph)
     config.assign_probs()

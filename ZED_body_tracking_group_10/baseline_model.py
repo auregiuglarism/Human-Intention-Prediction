@@ -15,6 +15,8 @@ class BaselineModel:
         self.known_objects = known_objects
         self.frame_x = 0.0
         self.frame_y = 0.0
+        self.thresholdx = 0.01
+        self.thresholdy = 0.01
 
     def compute_quadrant(self, new_object, objLst, configr):
         """
@@ -40,7 +42,8 @@ class BaselineModel:
         for ex_object in closest_objects:
             obj_x = ex_object.pos[0] - center_x
             obj_y = ex_object.pos[1] - center_y
-
+            if abs(obj_x)< self.thresholdx and abs(obj_y) < self.thresholdy:
+                return ex_object.name
             current_dist = nn_distances[0][cntr]
 
             # right object
@@ -79,6 +82,7 @@ class BaselineModel:
             for relation in range(len(relations)):
                 if relations[relation] == "Name":
                     relations[relation] = name
+        objLst.append(new_object)
         self.updateNames(objLst, configr)
 
         return name
@@ -89,10 +93,26 @@ class BaselineModel:
     #
     # Output:
     # returns indices of nearest neighbours (ordered in terms of increasing distance i.e. at index 0 it will be closest)
+
+    def change_names_in_relation(self, obj, current_name, new_name, objLst):
+        names_in_relation = []
+        for name in obj.relations:
+            if name not in names_in_relation and name != "-1":
+                names_in_relation.append(name)
+
+        for object in objLst:
+            if object.name in names_in_relation:
+                for i in range(len(object.relations)):
+                    if object.relations[i] == current_name:
+                        object.relations[i] = new_name
+
     def updateNames(self, objLst, configr):
         for obj in objLst:
-            obj.name = self.determineName(obj, configr)
-
+            current_name = obj.name
+            new_name = self.determineName(obj, configr)
+            if current_name != new_name:
+                obj.name = new_name
+                self.change_names_in_relation(obj, current_name, new_name, objLst)
     def determineName(self, new_object, configr):
         """
             knowing each objects relations and the configuration of the graph

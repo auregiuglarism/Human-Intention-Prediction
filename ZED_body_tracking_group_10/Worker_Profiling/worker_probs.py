@@ -12,11 +12,11 @@ class WorkerProbs:
         if task_prob is None:
             self.task_prob = {}
         else:
-            self.task_prob = {}
+            self.task_prob = task_prob
         if task_counter is None:
             self.task_counter = {}
         else:
-            self.task_counter = {}
+            self.task_counter = task_counter
 
     def clear_probs(self):
         self.task_prob = {}

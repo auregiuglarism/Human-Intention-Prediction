@@ -97,9 +97,13 @@ class Configuration:
                 # counter of how many same objects are in the graph
                 root_obj[object_name][0] += 1
                 # sum of all values of the same object
-                root_obj[object_name][1] += worker_counter["root"][node]
+                if ("root", node) in worker_counter:
+                    root_obj[object_name][1] += worker_counter[("root", node)]
             else:
-                root_obj[object_name] = [1, worker_counter["root"][node]]
+                if ("root", node) in worker_counter:
+                    root_obj[object_name] = [1, worker_counter[("root", node)]]
+                else:
+                    root_obj[object_name] = [1, 0]
         return root_obj
 
     def update_weights(self):
@@ -117,9 +121,9 @@ class Configuration:
             for key, value in self.worker_data['counter'].items():
                 if key[0] == "root":
                     object_name = key[1].split("_")[0][:-1]
-                    new_probs[key] = round((root_obj[object_name][1] / out_edges_freq[key])/root_obj[object_name][0],3)
+                    new_probs[key] = round((root_obj[object_name][1] / out_edges_freq[key[0]])/root_obj[object_name][0],3)
                 else:
-                    new_probs[key] = round(value / out_edges_freq[key], 3)
+                    new_probs[key] = round(value / out_edges_freq[key[0]], 3)
             self.worker_data['probs'] = new_probs
 
     def initGraph(self, input):
@@ -174,10 +178,12 @@ class Configuration:
         """
             Same @checkEq(), but here we do not check whether 2 strings are the same
         """
-        splt1 = set(nd1.split("_"))
-        splt2 = set(nd2.split("_"))
+        split1 = nd1.split("_")
+        split2 = nd2.split("_")
+        set1 = set(split1)
+        set2 = set(split2)
 
-        return (splt1 == splt2)
+        return (set1 == set2) and len(split1)==len(split2)
 
     def get_non_pop_edges(self, edges):
         """

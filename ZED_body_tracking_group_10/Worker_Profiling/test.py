@@ -38,16 +38,17 @@ def append_to_dict(existing_dict, new_items):
 # with open(file_path, 'wb') as pickle_file:
 #     pickle.dump(dict2, pickle_file)
 #
-# # To load the pickle file back into a dictionary
-# with open("/Users/Vitalij/Desktop/Project3-1/ZED_body_tracking_group_10/Worker_Profiling/Profiles/worker_2.json", 'rb') as pickle_file:
-#     loaded_dict = pickle.load(pickle_file)
+# To load the pickle file back into a dictionary
+with open("/home/kamil/PycharmProjects/Project3-1_WORKING_ZED/ZED_body_tracking_group_10/Worker_Profiling/Profiles/worker_3.pkl", 'rb') as pickle_file:
+    loaded_dict = pickle.load(pickle_file)
+print(loaded_dict)
 #
 # for key,values in dict2.items():
 #     print(key)
 #     print(values)
 
-s = "Cup0_root"
-s = s.split("_")[0]
-print(s[:-1])
+# s = "Cup0_root"
+# s = s.split("_")[0]
+# print(s[:-1])
 
 # print({"probs": dict1, "values": dict2})

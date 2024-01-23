@@ -1,4 +1,10 @@
+from time import sleep
+
+import cv2
 from Zed_Data_Extraction.record_skeleton_data import serializeBodies
+import main_utility.tracking_viewer as cv_viewer
+import numpy as np
+
 
 class ZedCamera:
     def __init__(self, sl):
@@ -61,6 +67,7 @@ class ZedCamera:
         body_tracking_parameters.body_format = sl.BODY_FORMAT.BODY_18
         body_tracking_parameters.enable_body_fitting = True
         body_tracking_parameters.enable_tracking = True
+        self.body_tracking_parameters = body_tracking_parameters
         self.zed.enable_body_tracking(body_tracking_parameters)
 
         # Setting runtime variables
@@ -132,7 +139,7 @@ class ZedCamera:
         return output
 
     # converts detections from YOLO to ZED SDK CustomBox format
-    def detections_to_custom_box(self, detections, im0, names):
+    def detections_to_custom_box(self, detections, im0, names, sl):
         output = []
         for i, det in enumerate(detections):
             xywh = det.xywh[0]
@@ -146,23 +153,22 @@ class ZedCamera:
             output.append(obj)
         return output
 
-    def retrieve_bodies(self):
-        self.zed.retrieve_bodies(self.bodies, self.body_runtime_param, self.body_tracking_parameters.instance_module_id)
-        return self.bodies
-
     def get_error_code(self):
         return self.zed.grab(self.runtime_params)
 
     def get_skeleton_data(self):
-        return serializeBodies(self.zed_camera.retrieve_bodies())
+        self.zed.retrieve_bodies(self.bodies, self.body_runtime_param,
+                                 self.body_tracking_parameters.instance_module_id)
+        return serializeBodies(self.bodies)
 
     def get_object_data(self):
         self.zed.retrieve_objects(self.objects, self.obj_runtime_param, self.obj_param.instance_module_id)
+        return self.objects
 
     def close_camera(self):
         self.zed.close()
 
-    def retrieve_display_data(self):
+    def retrieve_display_data(self, sl):
         self.zed.retrieve_measure(self.point_cloud, sl.MEASURE.XYZRGBA, sl.MEM.CPU,
                                   self.point_cloud_res)  # update point cloud
         self.zed.retrieve_image(self.image_left, sl.VIEW.LEFT, sl.MEM.CPU, self.display_resolution)
