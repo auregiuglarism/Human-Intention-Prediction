@@ -63,7 +63,6 @@ class ZedObjectDetection:
           param: current_node - the configuration at this moment
           param: prev_node - the previous configuration before placing current object
         """
-        print("Increasing counter for ", current_node , prev_node)
         self.config.increase_worker_counter(current_node, prev_node)
 
     def update_save_worker(self):
@@ -96,7 +95,7 @@ class ZedObjectDetection:
                     self.baseline.frame_y = 0
                     self.frame_size_set = True
 
-                results = model.predict(img, save=False, conf=conf_thres, iou=iou_thres)[0]
+                results = model.predict(img, save=False, conf=conf_thres, iou=iou_thres, verbose=False)[0]
                 det = results.cpu().numpy().boxes
 
                 # ZED CustomBox format (with inverse letterboxing tf applied)
@@ -163,6 +162,7 @@ class ZedObjectDetection:
                 single_frame_map = self.updateKNN(knn_labels, objects.object_list)
 
                 self.flicker_method(self.holding)
+                # print(skeleton_data)
                 if len(skeleton_data[-1]['body_list']) > 0:
                     frm_dists = self.calcAllDistances(single_frame_map, skeleton_data[-1]['body_list'][-1])
                     self.updateFifteenDst(frm_dists)
@@ -174,7 +174,6 @@ class ZedObjectDetection:
                         # getting the class name from @self.map_raw_to_label
                         # and the object position
                         new_obj = Object(self.map_raw_to_label[str(object[1])], object[2].tolist())
-                        print('newobj: ', new_obj.type)
                         # compute where the object is relative to other objects in the frame
                         # outputs the name, based on its location
                         obj_name = self.baseline.compute_quadrant(new_obj, self.plcdObjs, self.baseline.known_objects)
@@ -194,7 +193,7 @@ class ZedObjectDetection:
                             # make prediction
                             pred = self.baseline.yolo_predict(name)
                             print("Prediction ", pred)
-                            sleep(1)
+                            sleep(5)
 
                             # if the graph doesn't have any more nodes to predict end the program
                             if len(self.plcdObjs) == len(self.baseline.known_objects):
@@ -202,7 +201,7 @@ class ZedObjectDetection:
                         else:
                             print("Wrong placement")
                             print(name)
-                            sleep(1)
+                            sleep(5)
                     self.prevHolding = self.delayed_holding
 
                 # Rendering the objects on screen
@@ -217,6 +216,7 @@ class ZedObjectDetection:
         exit_signal = True
         self.update_save_worker()
         self.zed_camera.close_camera()
+
 
     def get_close_object(self, object_list, skeleton, threshold=0.28):
         """
@@ -288,7 +288,7 @@ class ZedObjectDetection:
             if distance_current < min_dist:
                 prob_object = [label, raw_label, pos]
                 min_dist = distance_current
-
+        print("Min dist ", min_dist)
         if min_dist < threshold:
             self.holding = True
             return prob_object
@@ -384,10 +384,10 @@ class ZedObjectDetection:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', type=str, default='Yolo_Models/new_best.pt', help='model.pt path(s)')
-    parser.add_argument('--svo', type=str, default='/home/kamil/PycharmProjects/Project3-1_WORKING_ZED/ZED_body_tracking_group_10/assembly1.svo', help='optional svo file')
-    parser.add_argument('--conf_thres', type=float, default=0.5, help='object confidence threshold')
-    parser.add_argument('--iou_thres', type=float, default=0.5, help='iou threshold')
+    parser.add_argument('--weights', type=str, default='Yolo_Models/best2.pt', help='model.pt path(s)')
+    parser.add_argument('--svo', type=str, default=None, help='optional svo file')
+    parser.add_argument('--conf_thres', type=float, default=0.6, help='object confidence threshold')
+    parser.add_argument('--iou_thres', type=float, default=0.8, help='iou threshold')
     parser.add_argument('--worker_id', type=int, default= None, help= 'worker_id')
     opt = parser.parse_args()
 
